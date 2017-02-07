@@ -50,7 +50,6 @@ to setup
   setup-vacuums
   setup-bins
   setup-ticks
-  show shapes
 end
 
 
@@ -65,7 +64,7 @@ end
 ; --- Setup patches ---
 to setup-patches
   ask patches [set pcolor white] ; initialize all patches to white
-  set total_dirty round (count patches) * (dirt_pct / 100) ; estimate num of dirty patches
+  set total_dirty round (count patches * dirt_pct / 100) ; estimate num of dirty patches
   ask n-of total_dirty patches [set pcolor grey] ; randomly set total_dirty patches to grey
 end
 
@@ -78,10 +77,6 @@ to setup-vacuums
   ask vacuums [set desire nobody]
   ask vacuums [set size 4]
   ask vacuums [set current_load 0]
-
-  update-beliefs
-  update-desires
-  update-intentions
 
 end
 
@@ -98,7 +93,7 @@ to go
   ; For Assignment 1, this involves updating desires, beliefs and intentions, and executing actions (and advancing the tick counter).
 
   ; check if done, then stop
-  if round total_dirty = 0 [stop]
+  if total_dirty = 0 [stop]
 
   update-beliefs
   update-desires
@@ -153,9 +148,11 @@ to execute-actions
   ; Here you should put the code related to the actions performed by your agent: moving and cleaning (and in Assignment 1.3, throwing away dirt).
   ask vacuums
   [
+
     ifelse (any? bins-on patch-here) and (current_load = bag_size)
     [
       set current_load  0
+
       set desire nobody
     ]
     [
@@ -171,14 +168,16 @@ to execute-actions
         move-to intention
       ]
     ]
+
+    set size (4 + 5 * current_load / bag_size)
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 832
 18
-1243
-430
+1407
+594
 -1
 -1
 22.7
@@ -210,7 +209,7 @@ dirt_pct
 dirt_pct
 0
 100
-100.0
+25.0
 1
 1
 NIL
@@ -256,7 +255,7 @@ MONITOR
 778
 160
 Number of dirty cells left.
-round total_dirty
+total_dirty
 17
 1
 11
@@ -326,22 +325,22 @@ SLIDER
 13
 356
 778
-390
+389
 bag_size
 bag_size
 1
 10
-2.0
+6.0
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-20
-411
-190
-456
+14
+407
+184
+452
 Current Load
 [current_load] of vacuum 0
 17
