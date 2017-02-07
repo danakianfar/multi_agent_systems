@@ -88,7 +88,7 @@ to go
   ; For Assignment 1, this involves updating desires, beliefs and intentions, and executing actions (and advancing the tick counter).
 
   ; check if done, then stop
-  if round total_dirty = 0 [stop]
+  if rtotal_dirty = 0 [stop]
 
   update-beliefs
   update-desires
