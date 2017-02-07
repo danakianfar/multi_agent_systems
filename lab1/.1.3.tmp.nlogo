@@ -28,6 +28,7 @@ globals [total_dirty time]
 ;
 ; 1) vacuums: vacuum cleaner agents.
 breed [vacuums vacuum]
+breed [bins bin]
 
 
 ; --- Local variables ---
@@ -38,7 +39,7 @@ breed [vacuums vacuum]
 ; 1) beliefs: the agent's belief base about locations that contain dirt
 ; 2) desire: the agent's current desire
 ; 3) intention: the agent's current intention
-vacuums-own [beliefs desire intention]
+vacuums-own [beliefs desire intention current_load]
 
 
 ; --- Setup ---
@@ -47,11 +48,19 @@ to setup
   set time 0
   setup-patches
   setup-vacuums
+  setup-bins
   setup-ticks
+  show shapes
 end
 
 
-
+to setup-bins
+  create-bins 1
+  ask bins [setxy random-xcor random-ycor]
+  ask bins [set color blue]
+  ask bins [set shape "garbage-can"]
+  ask bins [set size 1]
+end
 
 ; --- Setup patches ---
 to setup-patches
@@ -65,9 +74,10 @@ end
 to setup-vacuums
   create-vacuums 1
   ask vacuums [setxy random-xcor random-ycor]
-  ask vacuums [set color blue]
-  ask vacuums [set shape "sheep"]
+  ask vacuums [set shape "vacuum-cleaner"]
   ask vacuums [set desire nobody]
+  ask vacuums [set size 4]
+  ask vacuums [set current_load 0]
 
   update-beliefs
   update-desires
@@ -88,7 +98,7 @@ to go
   ; For Assignment 1, this involves updating desires, beliefs and intentions, and executing actions (and advancing the tick counter).
 
   ; check if done, then stop
-  if rtotal_dirty = 0 [stop]
+  if round total_dirty = 0 [stop]
 
   update-beliefs
   update-desires
@@ -99,31 +109,42 @@ end
 
 
 ; --- Update desires ---
-to update-desires
-  ask vacuums
-  [
-    if desire = nobody
-    [set desire item 0 beliefs]
-  ]
-end
-
-
-; --- Update desires ---
 to update-beliefs
  ; In Assignment 1.3, your agent also needs to know where is the garbage can.
 
   ; set beliefs
-  let belief-list [self] of (patches with [pcolor = grey])
-  ;set belief-list sort-on [who] belief-list
-  ask vacuums [set beliefs belief-list]
+  ;let belief-list [self] of (patches with [pcolor = grey])
+  ask vacuums [set beliefs (patches with [pcolor = grey])]
+end
+
+
+; --- Update desires ---
+to update-desires
+  ask vacuums
+  [
+    ifelse current_load = bag_size
+    [
+      set desire min-one-of bins [distance myself]
+    ]
+    [
+      if desire = nobody
+      [set desire min-one-of beliefs [distance myself]]
+    ]
+
+  ]
 end
 
 
 ; --- Update intentions ---
 to update-intentions
   ; set intentions
-  ask vacuums [set intention desire]
-  ask vacuums [ask intention [set pcolor red]]
+  ask vacuums
+  [
+    set intention desire
+
+    if current_load != bag_size
+    [ask intention [set pcolor green]]
+  ]
 end
 
 
@@ -132,29 +153,35 @@ to execute-actions
   ; Here you should put the code related to the actions performed by your agent: moving and cleaning (and in Assignment 1.3, throwing away dirt).
   ask vacuums
   [
-    show patch-at 0 0
-    show intention
-    ifelse patch-at 0 0 = intention
-    [; clean garbage
-      ask intention [set pcolor white]
-      set total_dirty total_dirty - 1
+    ifelse (any? bins-on patch-here) and (current_load = bag_size)
+    [
+      set current_load  0
       set desire nobody
     ]
-    [ ; go to next dirty patch
-      face intention
-      move-to intention
+    [
+      ifelse patch-at 0 0 = intention
+      [; unload, or clean garbage
+        ask intention [set pcolor white]
+        set total_dirty total_dirty - 1
+        set current_load current_load + 1
+        set desire nobody
+      ]
+      [ ; go to next dirty patch
+        face intention
+        move-to intention
+      ]
     ]
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-782
-17
-1380
-616
+832
+18
+1243
+430
 -1
 -1
-23.6
+22.7
 1
 10
 1
@@ -183,7 +210,7 @@ dirt_pct
 dirt_pct
 0
 100
-13.0
+100.0
 1
 1
 NIL
@@ -291,6 +318,32 @@ MONITOR
 295
 The agent's current intention.
 [intention] of vacuum 0
+17
+1
+11
+
+SLIDER
+13
+356
+778
+390
+bag_size
+bag_size
+1
+10
+5.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+20
+411
+190
+456
+Current Load
+[current_load] of vacuum 0
 17
 1
 11
