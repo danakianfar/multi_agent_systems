@@ -7,6 +7,7 @@
 ; Please use this template as a basis for the code to generate the behaviour of your smart vacuum cleaner.
 ; However, feel free to extend this with any variable or method you think is necessary.
 
+extensions [table]
 
 ; --- Settable variables ---
 ; The following settable variables are given as part of the 'Interface' (hence, these variables do not need to be declared in the code):
@@ -20,7 +21,7 @@
 ;
 ; 1) total_dirty: this variable represents the amount of dirty cells in the environment.
 ; 2) time: the total simulation time.
-globals [total_dirty time]
+globals [initial_dirt_count total_dirty total_distance time]
 
 
 ; --- Agents ---
@@ -46,6 +47,7 @@ vacuums-own [beliefs desire intention current_load]
 to setup
   clear-all
   set time 0
+  set total_distance 0
   setup-patches
   setup-vacuums
   setup-bins
@@ -66,6 +68,7 @@ to setup-patches
   ask patches [set pcolor white] ; initialize all patches to white
   set total_dirty round (count patches * dirt_pct / 100) ; estimate num of dirty patches
   ask n-of total_dirty patches [set pcolor grey] ; randomly set total_dirty patches to grey
+  set initial_dirt_count total_dirty
 end
 
 
@@ -74,7 +77,7 @@ to setup-vacuums
   create-vacuums 1
   ask vacuums [setxy random-xcor random-ycor]
   ask vacuums [set shape "vacuum-cleaner"]
-  ask vacuums [set desire nobody]
+  ask vacuums [set intention nobody]
   ask vacuums [set size 4]
   ask vacuums [set current_load 0]
 
@@ -89,11 +92,8 @@ end
 
 ; --- Main processing cycle ---
 to go
-  ; This method executes the main processing cycle of an agent.
-  ; For Assignment 1, this involves updating desires, beliefs and intentions, and executing actions (and advancing the tick counter).
-
-  ; check if done, then stop
-  if total_dirty = 0 [stop]
+  ; update the count of dirty cells
+  set total_dirty count (patches with [pcolor != white])
 
   update-beliefs
   update-desires
@@ -103,13 +103,16 @@ to go
 end
 
 
-; --- Update desires ---
+; --- Update beliefs ---
 to update-beliefs
- ; In Assignment 1.3, your agent also needs to know where is the garbage can.
 
-  ; set beliefs
-  ;let belief-list [self] of (patches with [pcolor = grey])
-  ask vacuums [set beliefs (patches with [pcolor = grey])]
+  ask vacuums
+  [
+    set beliefs table:make
+    ; add dirt-patches locations and bin-locations to the beliefs
+    table:put beliefs "dirt-locations" (patches with [pcolor != white])
+    table:put beliefs "bin-locations" bins
+  ]
 end
 
 
@@ -117,70 +120,102 @@ end
 to update-desires
   ask vacuums
   [
-    ifelse current_load = bag_size
+    ; if the vacuum beliefs there's no dirt left
+    ifelse count (table:get beliefs "dirt-locations") = 0
     [
-      set desire min-one-of bins [distance myself]
+      ; set the desire to "idle"
+      set desire "idle"
     ]
     [
-      if desire = nobody
-      [set desire min-one-of beliefs [distance myself]]
+      ; otherwise the desire is "clean"
+      set desire "clean"
     ]
-
   ]
 end
 
 
 ; --- Update intentions ---
 to update-intentions
-  ; set intentions
+
   ask vacuums
   [
-    set intention desire
-
-    if current_load != bag_size
-    [ask intention [set pcolor green]]
+    ; if the desire is cleaning
+    ifelse desire = "clean"
+    [
+      ; if the bag is full
+      ifelse current_load = bag_size
+      [
+        ; then the vacuum sets the intention to the position of the closest bin
+        set intention min-one-of (table:get beliefs "bin-locations") [distance myself]
+      ]
+      [
+        ; if the vacuum is on a "dirty" patch
+        ifelse patch-at 0 0 = intention
+        [
+          set intention "clean-patch"
+        ]
+        [
+          ; otherwise since the desire is to clean, the vacuum sets the intention to the position of the closest dirty patch
+          set intention min-one-of (table:get beliefs "dirt-locations")  [distance myself]
+          ask intention [set pcolor green]
+        ]
+      ]
+    ]
+    [
+      ; if the desire is not to clean, it justs sets the intention to "stand-by"
+      set intention "stand-by"
+    ]
   ]
 end
 
 
 ; --- Execute actions ---
 to execute-actions
-  ; Here you should put the code related to the actions performed by your agent: moving and cleaning (and in Assignment 1.3, throwing away dirt).
   ask vacuums
   [
-
-    ifelse (any? bins-on patch-here) and (current_load = bag_size)
+    ; if the intention is to clean the current patch
+    if intention = "clean-patch"
     [
-      set current_load  0
+      ; clean the patch
+        ask self [set pcolor white]
 
-      set desire nobody
-    ]
-    [
-      ifelse patch-at 0 0 = intention
-      [; unload, or clean garbage
-        ask intention [set pcolor white]
-        set total_dirty total_dirty - 1
+        ; increase the load
         set current_load current_load + 1
-        set desire nobody
-      ]
-      [ ; go to next dirty patch
-        face intention
-        move-to intention
-      ]
     ]
 
-    set size (4 + 5 * current_load / bag_size)
+    ; if the intention is not "stand-by"
+    if intention != "stand-by"
+    [
+      ; if the bag is full and the vacuum is at the location of one bin
+      ifelse (any? bins-on patch-here) and (current_load = bag_size)
+      [
+        ; unload the bag
+        set current_load 0
+      ]
+      [
+        ; if the intention is a moving to a position
+        if is-patch? intention or is-turtle? intention
+        [
+          ; then the vacuum moves to the intention location
+          set total_distance total_distance + distance intention
+          face intention
+          move-to intention
+        ]
+      ]
+      ; increase the size according to the load percentage
+      set size (4 + 3 * current_load / bag_size)
+    ]
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-832
-18
-1407
-594
+788
+17
+1511
+741
 -1
 -1
-22.7
+28.6
 1
 10
 1
@@ -209,7 +244,7 @@ dirt_pct
 dirt_pct
 0
 100
-25.0
+40.0
 1
 1
 NIL
@@ -322,27 +357,57 @@ The agent's current intention.
 11
 
 SLIDER
-13
-356
+12
+340
 778
-389
+373
 bag_size
 bag_size
 1
 10
-6.0
+7.0
 1
 1
 NIL
 HORIZONTAL
 
 MONITOR
-14
-407
-184
-452
+12
+373
+778
+418
 Current Load
 [current_load] of vacuum 0
+17
+1
+11
+
+PLOT
+12
+467
+778
+788
+dirty patches percentage over distance
+total distance
+dirty percentage
+0.0
+1.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"dirt percentage" 1.0 0 -16777216 true "" "plotxy total_distance total_dirty / initial_dirt_count"
+"vacuum load" 1.0 0 -534828 true "" "ask one-of vacuums [\nplotxy total_distance current_load / bag_size\n]"
+
+MONITOR
+12
+418
+778
+463
+total distance travelled
+total_distance
 17
 1
 11
