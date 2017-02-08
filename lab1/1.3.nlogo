@@ -197,9 +197,9 @@ to execute-actions
         if is-patch? intention or is-turtle? intention
         [
           ; then the vacuum moves to the intention location
-          set total_distance total_distance + distance intention
+          set total_distance total_distance + 0.1
           face intention
-          move-to intention
+          forward 0.1
         ]
       ]
       ; increase the size according to the load percentage
@@ -244,7 +244,7 @@ dirt_pct
 dirt_pct
 0
 100
-40.0
+34.0
 1
 1
 NIL
