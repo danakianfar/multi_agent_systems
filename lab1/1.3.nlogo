@@ -77,7 +77,6 @@ to setup-vacuums
   create-vacuums 1
   ask vacuums [setxy random-xcor random-ycor]
   ask vacuums [set shape "vacuum-cleaner"]
-  ask vacuums [set intention nobody]
   ask vacuums [set size 4]
   ask vacuums [set current_load 0]
 
@@ -146,18 +145,20 @@ to update-intentions
       ifelse current_load = bag_size
       [
         ; then the vacuum sets the intention to the position of the closest bin
-        set intention min-one-of (table:get beliefs "bin-locations") [distance myself]
+        ;set intention min-one-of (table:get beliefs "bin-locations") [distance myself]
+        set intention "unload"
       ]
       [
         ; if the vacuum is on a "dirty" patch
-        ifelse patch-at 0 0 = intention
+        ifelse [pcolor] of patch-at 0 0 != white
         [
           set intention "clean-patch"
         ]
         [
           ; otherwise since the desire is to clean, the vacuum sets the intention to the position of the closest dirty patch
-          set intention min-one-of (table:get beliefs "dirt-locations")  [distance myself]
-          ask intention [set pcolor green]
+          set intention "go-to-dirty"
+          ;set intention min-one-of (table:get beliefs "dirt-locations")  [distance myself]
+          ;ask intention [set pcolor green]
         ]
       ]
     ]
@@ -183,38 +184,48 @@ to execute-actions
         set current_load current_load + 1
     ]
 
-    ; if the intention is not "stand-by"
-    if intention != "stand-by"
+
+    ; if the bag is full and the vacuum is at the location of one bin
+    if intention = "unload" ;and (current_load = bag_size)
     [
-      ; if the bag is full and the vacuum is at the location of one bin
-      ifelse (any? bins-on patch-here) and (current_load = bag_size)
+      ifelse (any? bins-on patch-here) ; are you at a bin?
       [
         ; unload the bag
         set current_load 0
       ]
       [
-        ; if the intention is a moving to a position
-        if is-patch? intention or is-turtle? intention
-        [
-          ; then the vacuum moves to the intention location
-          set total_distance total_distance + 0.1
-          face intention
-          forward 0.1
-        ]
+        ; move to bin
+        let bin_pos min-one-of (table:get beliefs "bin-locations") [distance myself]
+        face bin_pos
+        forward 0.1
       ]
-      ; increase the size according to the load percentage
-      set size (4 + 3 * current_load / bag_size)
     ]
+
+    ; if the intention is a moving to a position
+    if intention = "go-to-dirty" ;is-patch? intention or is-turtle? intention
+    [
+      ; then the vacuum moves to the intention location
+
+      let closest_dirt min-one-of (table:get beliefs "dirt-locations")  [distance myself]
+      face closest_dirt
+      ask closest_dirt [set pcolor green]
+      forward 0.1
+      set total_distance total_distance + 0.1
+    ]
+
+    ; increase the size according to the load percentage
+    set size (4 + 3 * current_load / bag_size)
+
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 788
 17
-1511
-741
--1
--1
+1513
+763
+12
+12
 28.6
 1
 10
@@ -244,7 +255,7 @@ dirt_pct
 dirt_pct
 0
 100
-34.0
+39
 1
 1
 NIL
@@ -365,7 +376,7 @@ bag_size
 bag_size
 1
 10
-7.0
+7
 1
 1
 NIL
@@ -801,8 +812,9 @@ false
 0
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
+
 @#$#@#$#@
-NetLogo 6.0
+NetLogo 5.3.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
@@ -818,6 +830,7 @@ true
 0
 Line -7500403 true 150 150 90 180
 Line -7500403 true 150 150 210 180
+
 @#$#@#$#@
 0
 @#$#@#$#@
