@@ -7,7 +7,6 @@
 ; Please use this template as a basis for the code to generate the behaviour of your smart vacuum cleaner.
 ; However, feel free to extend this with any variable or method you think is necessary.
 
-
 ; --- Settable variables ---
 ; The following settable variables are given as part of the 'Interface' (hence, these variables do not need to be declared in the code):
 ;
@@ -20,7 +19,7 @@
 ;
 ; 1) total_dirty: this variable represents the amount of dirty cells in the environment.
 ; 2) time: the total simulation time.
-globals [total_dirty time]
+globals [initial_dirt_count total_dirty total_distance time]
 
 
 ; --- Agents ---
@@ -45,34 +44,27 @@ vacuums-own [beliefs desire intention]
 to setup
   clear-all
   set time 0
+  set total_distance 0
   setup-patches
   setup-vacuums
   setup-ticks
 end
 
-
-
-
 ; --- Setup patches ---
 to setup-patches
   ask patches [set pcolor white] ; initialize all patches to white
-  set total_dirty round (count patches) * (dirt_pct / 100) ; estimate num of dirty patches
+  set total_dirty round (count patches * dirt_pct / 100) ; estimate num of dirty patches
   ask n-of total_dirty patches [set pcolor grey] ; randomly set total_dirty patches to grey
+  set initial_dirt_count total_dirty
 end
 
 
 ; --- Setup vacuums ---
 to setup-vacuums
-  create-vacuums 1
+  create-vacuums n_vacuums
   ask vacuums [setxy random-xcor random-ycor]
-  ask vacuums [set color blue]
-  ask vacuums [set shape "sheep"]
-  ask vacuums [set desire nobody]
-
-  update-beliefs
-  update-desires
-  update-intentions
-
+  ask vacuums [set shape "vacuum-cleaner"]
+  ask vacuums [set size 4]
 end
 
 
@@ -84,11 +76,8 @@ end
 
 ; --- Main processing cycle ---
 to go
-  ; This method executes the main processing cycle of an agent.
-  ; For Assignment 1, this involves updating desires, beliefs and intentions, and executing actions (and advancing the tick counter).
-
-  ; check if done, then stop
-  if round total_dirty = 0 [stop]
+  ; update the count of dirty cells
+  set total_dirty count (patches with [pcolor != white])
 
   update-beliefs
   update-desires
@@ -98,63 +87,100 @@ to go
 end
 
 
-; --- Update desires ---
-to update-desires
+; --- Update beliefs ---
+to update-beliefs
+
   ask vacuums
   [
-    if desire = nobody
-    [set desire item 0 beliefs]
+    ; add dirt-patches locations to the beliefs
+    set beliefs patches with [pcolor = grey]
   ]
+
 end
 
 
 ; --- Update desires ---
-to update-beliefs
- ; In Assignment 1.3, your agent also needs to know where is the garbage can.
-
-  ; set beliefs
-  let belief-list [self] of (patches with [pcolor = grey])
-  ;set belief-list sort-on [who] belief-list
-  ask vacuums [set beliefs belief-list]
+to update-desires
+  ask vacuums
+  [
+    ; if the vacuum beliefs there's no dirt left
+    ifelse total_dirty = 0
+    [
+      ; set the desire to "wait"
+      set desire "wait"
+    ]
+    [
+      ; otherwise the desire is "clean"
+      set desire "clean"
+    ]
+  ]
 end
 
 
 ; --- Update intentions ---
 to update-intentions
-  ; set intentions
-  ask vacuums [set intention desire]
-  ask vacuums [ask intention [set pcolor red]]
+
+  ask vacuums
+  [
+    ; if the desire is cleaning
+    ifelse desire = "clean"
+    [
+      ; if the vacuum is on a "dirty" patch
+      ifelse patch-at 0 0 = intention
+      [
+        set intention "clean-patch"
+      ]
+      [
+        if not is-patch? intention
+        [
+          ; otherwise pick a new dirty patch
+          set intention one-of beliefs
+        ]
+      ]
+    ]
+    [
+      ; if the desire is not to clean, it justs sets the intention to "stand-by"
+      set intention "stand-by"
+    ]
+  ]
 end
 
 
+to step-to [target]
+  face target
+  forward 0.1
+  set total_distance total_distance + 0.1
+end
+
 ; --- Execute actions ---
 to execute-actions
-  ; Here you should put the code related to the actions performed by your agent: moving and cleaning (and in Assignment 1.3, throwing away dirt).
   ask vacuums
   [
-    show patch-at 0 0
-    show intention
-    ifelse patch-at 0 0 = intention
-    [; clean garbage
-      ask intention [set pcolor white]
-      set total_dirty total_dirty - 1
-      set desire nobody
+    ; if the intention is to clean the current patch
+    if intention = "clean-patch"
+    [
+      ; clean the patch
+        ask self [set pcolor white]
     ]
-    [ ; go to next dirty patch
-      face intention
-      move-to intention
+
+    ; if the intention is a moving to a position
+    if is-patch? intention
+    [
+      ; then the vacuum moves to the intention location
+      step-to intention
+      ask intention [set pcolor green]
     ]
   ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-782
+788
 17
-1380
-616
--1
--1
-23.6
+1513
+763
+12
+12
+28.6
 1
 10
 1
@@ -183,7 +209,7 @@ dirt_pct
 dirt_pct
 0
 100
-13.0
+36
 1
 1
 NIL
@@ -229,7 +255,7 @@ MONITOR
 778
 160
 Number of dirty cells left.
-round total_dirty
+total_dirty
 17
 1
 11
@@ -294,6 +320,50 @@ The agent's current intention.
 17
 1
 11
+
+PLOT
+12
+395
+778
+716
+dirty patches percentage over distance
+total distance
+dirty percentage
+0.0
+1.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"dirt percentage" 1.0 0 -16777216 true "" "plotxy total_distance total_dirty / initial_dirt_count"
+
+MONITOR
+12
+346
+778
+391
+total distance travelled
+total_distance
+17
+1
+11
+
+SLIDER
+12
+717
+777
+750
+n_vacuums
+n_vacuums
+1
+10
+1
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -684,8 +754,9 @@ false
 0
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
+
 @#$#@#$#@
-NetLogo 6.0
+NetLogo 5.3.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
@@ -701,6 +772,7 @@ true
 0
 Line -7500403 true 150 150 90 180
 Line -7500403 true 150 150 210 180
+
 @#$#@#$#@
 0
 @#$#@#$#@

@@ -56,7 +56,7 @@ end
 
 
 to setup-bins
-  create-bins 1
+  create-bins n_bins
   ask bins [setxy random-xcor random-ycor]
   ask bins [set color blue]
   ask bins [set shape "garbage-can"]
@@ -74,7 +74,7 @@ end
 
 ; --- Setup vacuums ---
 to setup-vacuums
-  create-vacuums 1
+  create-vacuums n_vacuums
   ask vacuums [setxy random-xcor random-ycor]
   ask vacuums [set shape "vacuum-cleaner"]
   ask vacuums [set size 4]
@@ -122,8 +122,8 @@ to update-desires
     ; if the vacuum beliefs there's no dirt left
     ifelse count (table:get beliefs "dirt-locations") = 0
     [
-      ; set the desire to "idle"
-      set desire "idle"
+      ; set the desire to "wait"
+      set desire "wait"
     ]
     [
       ; otherwise the desire is "clean"
@@ -157,8 +157,6 @@ to update-intentions
         [
           ; otherwise since the desire is to clean, the vacuum sets the intention to the position of the closest dirty patch
           set intention "go-to-dirty"
-          ;set intention min-one-of (table:get beliefs "dirt-locations")  [distance myself]
-          ;ask intention [set pcolor green]
         ]
       ]
     ]
@@ -169,6 +167,12 @@ to update-intentions
   ]
 end
 
+
+to step-to [target]
+  face target
+  forward 0.1
+  set total_distance total_distance + 0.1
+end
 
 ; --- Execute actions ---
 to execute-actions
@@ -196,8 +200,7 @@ to execute-actions
       [
         ; move to bin
         let bin_pos min-one-of (table:get beliefs "bin-locations") [distance myself]
-        face bin_pos
-        forward 0.1
+        step-to bin_pos
       ]
     ]
 
@@ -205,12 +208,9 @@ to execute-actions
     if intention = "go-to-dirty" ;is-patch? intention or is-turtle? intention
     [
       ; then the vacuum moves to the intention location
-
       let closest_dirt min-one-of (table:get beliefs "dirt-locations")  [distance myself]
-      face closest_dirt
+      step-to closest_dirt
       ask closest_dirt [set pcolor green]
-      forward 0.1
-      set total_distance total_distance + 0.1
     ]
 
     ; increase the size according to the load percentage
@@ -255,7 +255,7 @@ dirt_pct
 dirt_pct
 0
 100
-39
+40
 1
 1
 NIL
@@ -410,7 +410,6 @@ false
 "" ""
 PENS
 "dirt percentage" 1.0 0 -16777216 true "" "plotxy total_distance total_dirty / initial_dirt_count"
-"vacuum load" 1.0 0 -534828 true "" "ask one-of vacuums [\nplotxy total_distance current_load / bag_size\n]"
 
 MONITOR
 12
@@ -422,6 +421,36 @@ total_distance
 17
 1
 11
+
+SLIDER
+12
+789
+777
+822
+n_vacuums
+n_vacuums
+1
+10
+1
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+12
+823
+777
+856
+n_bins
+n_bins
+1
+10
+1
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
