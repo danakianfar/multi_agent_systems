@@ -1,0 +1,82 @@
+buses-own [
+  ; Static, read-only variables. These values never change. You can read them, but you cannot change them.
+  bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
+  bus_type        ; The type of a given agent (bus). 1 means "small", 2 means "medium" and 3 means "large".
+    
+  ; Dynamic, read-only variables. These values may change over time. You can read them, but you cannot change them.
+  inbox           ; List containing all the incoming messages (a given message is a list like this [tick sender message]).
+  bus_passengers  ; List containing all the passengers that the agent (bus) is currently carrying (represented as a list like this [passenger_id bus_stop]).
+  previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
+  current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
+  next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
+
+  ; New local variables for students.
+  ; You can create any new local variable you want. Just declare them here.
+  last_stop
+  busses_number
+  capacity
+  bus_route
+]
+ 
+globals [graph]
+
+to init-buses
+  ; Initialize your agents here.
+  set next_stop -1
+  set busses_number 1
+  set bus_route [3 9 20 12 15 0 14 23 19 1 7 17 11 16 5 10 4 3]
+  
+  if bus_type = 1
+  [
+    set capacity bus_type1_capacity
+  ]
+  if bus_type = 2
+  [
+    set capacity bus_type2_capacity
+  ]
+  if bus_type = 3
+  [
+    set capacity bus_type3_capacity
+  ]
+  
+  ; This list contains the topology of the entire network of bus stops, which is known to all agents. You can use this, for instance, to calculate the shortest path between two bus stops.
+  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+end
+
+to execute-actions
+  ; Add decision making strategies for your agents here.
+  ; You are allowed to use the global variable 'ticks'.
+  
+  if current_stop != -1 
+  [
+    let passengers_count length (get-passengers-at-stop current_stop)
+    if (passengers_count > 0) 
+    [
+      foreach get-passengers-at-stop current_stop
+      [
+        if length bus_passengers < capacity
+        [
+          pick-up-passenger item 0 ?
+        ]
+      ]
+    ]
+    if length bus_passengers > 0 
+    [
+      foreach bus_passengers 
+      [
+        if item 1 ? = current_stop
+        [
+          drop-off-passenger item 0 ?
+        ]
+      ]
+    ]
+  ]
+
+  if next_stop = -1
+  [
+    let curr_stop_pos position current_stop bus_route
+    set next_stop item (curr_stop_pos + 1) bus_route
+  ]
+  
+  travel-to next_stop
+end
