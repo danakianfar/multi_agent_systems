@@ -1,4 +1,4 @@
-__includes [ "agents_w1.nls" ]
+__includes [ "week2/agents_w2.nls" ]
 breed [bus_stops bus_stop]
 undirected-link-breed [routes route]
 breed [buses bus]
