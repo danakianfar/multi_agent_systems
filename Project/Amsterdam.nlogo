@@ -1,4 +1,4 @@
-__includes [ "week2/agents_w2.nls" ]
+__includes [ "week3/agents_w3.nls" ]
 breed [bus_stops bus_stop]
 undirected-link-breed [routes route]
 breed [buses bus]
@@ -768,10 +768,10 @@ to-report get-passengers-at-stop [b_s_id]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-21
-12
-1097
-849
+19
+13
+1095
+850
 -1
 -1
 26.0
@@ -890,10 +890,10 @@ number_of_messages
 11
 
 PLOT
-21
-848
-335
-1066
+1099
+327
+1623
+495
 Average Travel Time
 Ticks
 Time
@@ -909,10 +909,10 @@ PENS
 "pen-1" 1.0 0 -7500403 true "" ""
 
 PLOT
-335
-848
-649
-1066
+1097
+669
+1625
+841
 Total Amount of Money Spent
 Ticks
 Euros
@@ -927,10 +927,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot expenses"
 
 PLOT
-648
-848
-962
-1066
+1097
+497
+1625
+670
 Total Number of Messages Sent
 Ticks
 #Messages
