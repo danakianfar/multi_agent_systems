@@ -50,19 +50,28 @@ class Bus:
     def pick_up_passenger(self, passenger_id):
         self.controller.pick_up_passenger(self, passenger_id)
         
+    def send_message(self, bus_id, message):
+        self.controller.send_message(self, bus_id, message)
+        
     def init_bus(self):
-        pass
+        raise NotImplementedError
     
     def execute_action(self):
-        pass
+        raise NotImplementedError
     
 class TestBus(Bus):
+    
     def init_bus(self):
         pass
     
     def execute_action(self):
         if self.current_stop:
             self.travel_to(np.random.choice(self.connections[self.current_stop.stop_id]))
+            
+#        if len(self.inbox)>0:
+#            print('INBOX:{}'.format(self.inbox))
+#            self.inbox = []
+            
         if self.controller.ticks %5 == 0 and self.bus_id == 24 :
             self.add_bus(1)
             
@@ -78,8 +87,7 @@ class AmsterdamBus(Bus):
     def init_bus(self): # [id1, id2, ... idn] id's of stations to visit in route
         self.fixed_route = np.random.choice(AmsterdamBus.fixed_routes)
         self.current_station_idx = 0
-        pass
-    
+        
     def next_station(self):
         if self.current_station_idx >= len(self.fixed_route)-1:
             print('eh')

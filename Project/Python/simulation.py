@@ -33,9 +33,11 @@ class Simulation:
         return bus_plot,
 
     def update_plot(self,title, plot):
-        buses_x = [bus.x for bus in self.simulation.buses]
-        buses_y = [bus.y for bus in self.simulation.buses]
-            
+        buses = [(bus.x, bus.y, bus.bus_id) for bus in self.simulation.buses.values()]
+ 
+        buses_x = [bus[0] for bus in buses]
+        buses_y = [bus[1] for bus in buses]
+                
         plot.set_data(buses_x, buses_y)
 
         title.set_text('ticks:{}'.format(self.simulation.ticks))
