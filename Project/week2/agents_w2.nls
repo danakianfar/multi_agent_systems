@@ -28,7 +28,7 @@ to init-buses
   ifelse bus_id = 24
   [
     ; 30 buses will be called
-    set busses_to_call 30
+    set busses_to_call 300
   ]
   [
     set busses_to_call 0
@@ -69,7 +69,7 @@ to execute-actions
   if busses_to_call > 0 and ticks mod 5 = 0
   [
     ; add buses of alternating type
-    add-bus busses_to_call mod 3 + 1
+    add-bus 3 ;busses_to_call mod 3 + 1
     set busses_to_call busses_to_call - 1
   ]
   
