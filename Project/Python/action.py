@@ -43,7 +43,7 @@ class Action:
             return False
     
     def __str__(self):
-        return '{}, {}'.format(self.time, self.callback)
+        return '\t{}, {}\n'.format(self.time, self.callback)
     
     def __repr__(self):
         return str(self)

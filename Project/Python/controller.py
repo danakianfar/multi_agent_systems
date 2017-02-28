@@ -7,12 +7,11 @@ from bus_stop import *
 from passenger import *
 
 
-
 class Controller:
     
     def __init__(self, bus_class=Bus , debug=False):
         self.ticks = 0
-        self.buses = []
+        self.buses = {}
         self.last_bus_id = 23
         self.bus_class = bus_class
         
@@ -65,11 +64,11 @@ class Controller:
             # create the bus
             new_bus = self.bus_class(self.last_bus_id, vehicle_type,  self.bus_stops[3], self)
             # add it to the fleet
-            self.buses.append(new_bus)
+            self.buses[self.last_bus_id] =  new_bus
         
-        add_bus_action = Action(self.ticks + 1, partial(bus_creation, vehicle_type))
+        bus_creation_action = Action(self.ticks + 1, partial(bus_creation, vehicle_type))
         
-        self.actions.push(add_bus_action)
+        self.actions.push(bus_creation_action)
         
     def travel_to(self, bus, bus_stop):
         assert bus.current_stop
@@ -99,13 +98,23 @@ class Controller:
         pick_up_action = Action(self.ticks, pick_up)
         
         self.actions.push(action)
+        
+    def send_message(self, sender, bus_id, message):
+        
+        def send_message(receiver, time, sender_id, message):
+            receiver.inbox.append((time, sender_id, message))
+         
+        send_action = Action(self.ticks, partial(send_message, self.buses[bus_id], self.ticks, sender.bus_id ,message))
+        
+        self.actions.push(send_action)
+        
             
     def step(self):
         while self.actions.peek() <= self.ticks and self.actions.peek() != -1:
             action = self.actions.pop()
             action()   
         
-        for bus in self.buses:
+        for bus in self.buses.values():
             bus.update()
             
         while self.actions.peek() == self.ticks and self.actions.peek() != -1:
@@ -115,5 +124,6 @@ class Controller:
         if self.debug:
             print('ticks:{}'.format(self.ticks))
             self.actions.plot()
+            print('\n\n')
         
         self.ticks += 1
