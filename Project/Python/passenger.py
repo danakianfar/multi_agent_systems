@@ -6,6 +6,7 @@ class Passenger:
         self.destination = destination
         self.source = source
         self.spawn_time = spawn_time
+        self.current_stop = source
         
     def get_waiting_time(current_time):
         return current_time-self.spawn_time

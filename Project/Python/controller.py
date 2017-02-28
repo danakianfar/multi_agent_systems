@@ -1,6 +1,6 @@
 from functools import partial
 import numpy as np
-
+import pandas as pd
 from bus import Bus, TestBus
 from action import *
 from bus_stop import *
@@ -8,6 +8,12 @@ from passenger import *
 
 
 class Controller:
+
+    bus_stop_names = {'Amstel': 0, 'Amstelveenseweg': 1, 'Buikslotermeer': 2, 'Centraal': 3,
+     'Dam': 4, 'Evertsenstraat': 5, 'Floradorp': 6, 'Haarlemmermeerstation': 7, 'Hasseltweg': 8,
+     'Hendrikkade': 9, 'Leidseplein': 10, 'Lelylaan': 11, 'Muiderpoort': 12, 'Museumplein': 13,
+     'RAI': 14, 'SciencePark': 15, 'Sloterdijk': 16, 'Surinameplein': 17, 'UvA': 18,
+     'VU': 19, 'Waterlooplein': 20, 'Weesperplein': 21,'Wibautstraat': 22, 'Zuid': 23}
     
     def __init__(self, bus_class=Bus , debug=False):
         self.ticks = 0
@@ -22,21 +28,57 @@ class Controller:
         self.debug = debug
         
         self.bus_stops = {}
+        self.passengers = {}
+        self.passenger_count = 0
 
         self.init_map()
         
         self.actions = ActionHeap()
+        self.passenger_actions = ActionHeap()
         
     def setup(self):
         self.add_bus(1)
+        self.init_daily_ridership()
                 
+    def init_daily_ridership(self):
+
+        def passengers_arrival_at_tick(row):
+            
+            def passengers_arrival(passengers):
+                
+                for passenger in passengers: 
+                    passenger.source.add_waiting_passenger(passenger)
+                    
+                    
+            tick = row['Ticks']  # When the passengers arrive (every 15 ticks)
+            source_name = row['FROM'] # source station
+            destination_names_counts = row[Controller.bus_stop_names.keys()][row[Controller.bus_stop_names.keys()] > 0] # Get destination-passenger_count tuples where passenger_count > 0
+            
+            # For each destination-passenger tuple
+            passengers = []
+
+            for destination_name, passenger_count in destination_names_counts.items():
+                source = self.bus_stops[Controller.bus_stop_names[source_name]]
+                destination = self.bus_stops[Controller.bus_stop_names[destination_name]]
+                
+                
+                for i in range(passenger_count): 
+                    passenger = Passenger(self.passenger_count , source, destination, tick)
+                    self.passengers[passenger.passenger_id] = passenger
+                    self.passenger_count +=1 
+                    passengers.append(passenger)
+
+
+            passengers_arrival_action = Action(tick, partial(passengers_arrival, passengers))
+            self.passenger_actions.push(passengers_arrival_action)
+
+        df = pd.read_pickle('./passengers.dataframe')
+
+        # Map to each row in dataframe (each arrival)
+        df.apply(passengers_arrival_at_tick, axis=1)
+
     
     def init_map(self):
-        amsterdam_bus_stops_names = ["Amstel", "Amstelveenseweg", "Buikslotermeer","Centraal","Dam",
-                                     "Evertsenstraat","Floradorp","Haarlemmermeerstation","Hasseltweg",
-                                     "Hendrikkade","Leidseplein","Lelylaan","Muiderpoort","Museumplein",
-                                     "RAI","SciencePark","Sloterdijk","Surinameplein","UvA","VU","Waterlooplein",
-                                     "Weesperplein","Wibautstraat","Zuid"]
 
         xs = [27, 11, 31, 22, 21, 11, 25, 11, 26, 25, 17, 4, 31, 17, 19, 35, 6, 10, 38, 14, 23, 24, 25, 15]
         ys = [7, 4, 30, 21, 18, 18, 30, 9, 24, 18, 14, 12, 13, 11, 3, 10, 26, 13, 11, 1, 16, 13, 11, 4]
@@ -48,9 +90,9 @@ class Controller:
 
         self.adj_matrix = np.ones((len(xs), len(xs)))*-np.inf
         
-        for i in range(len(self.connections)):
+        for stop_name, i in Controller.bus_stop_names.items():
             # Creates bus stop and appends it to the list
-            self.bus_stops[i] = BusStop(i, amsterdam_bus_stops_names[i], xs[i], ys[i])
+            self.bus_stops[i] = BusStop(i, stop_name, xs[i], ys[i])
             orig = i
             # Creates the bidirectional connection between stop orig and stop dest
             for dest in self.connections[i]:
@@ -92,12 +134,41 @@ class Controller:
         self.actions.push(arrive_action)
         
     def pick_up_passenger(self, bus, passenger_id):
-        def pick_up():
-            print("TO IMPLEMENT PASS")
+        assert bus.current_stop == self.passengers[passenger_id].current_stop
+
+        def pick_up(bus, passenger):
+            # unload from station
+            self.bus_stops[bus.current_stop.stop_id].remove_waiting_passenger(passenger)
+
+            # load to bus
+            bus.bus_passengers.append(passenger.passenger_id, passenger.destination.stop_id)
+            passenger.current_stop = None
             
-        pick_up_action = Action(self.ticks, pick_up)
+        pick_up_action = Action(self.ticks, partial(pick_up,  bus, self.passengers[passenger_id]))
         
-        self.actions.push(action)
+        self.actions.push(pick_up_action)
+
+
+    def drop_off_passenger(self, bus, passenger_id):
+        assert passenger_id in [p[0] for p in bus.bus_passengers]
+
+        def drop_off(bus, passenger):
+            # unload from bus
+            bus.bus_passengers.remove((passenger.passenger_id, passenger.destination.stop_id))
+
+
+            if passenger.destination == bus.current_stop:
+                self.deliver_passenger(passenger)
+            else: 
+                # load to station
+                self.bus_stops[bus.current_stop.stop_id].add_waiting_passenger(passenger)
+                
+        drop_off_action = Action(self.ticks, partial(drop_off, bus, self.passengers[passenger_id]))
+        
+        self.actions.push(drop_off_action)
+
+    def deliver_passenger(self, passenger):
+        print('Passenger delivered %s' % passenger.passenger_id)
         
     def send_message(self, sender, bus_id, message):
         
@@ -110,6 +181,11 @@ class Controller:
         
             
     def step(self):
+
+        while self.passenger_actions.peek() <= self.ticks and self.passenger_actions.peek() != -1:
+            action = self.passenger_actions.pop()
+            action() 
+
         while self.actions.peek() <= self.ticks and self.actions.peek() != -1:
             action = self.actions.pop()
             action()   
@@ -124,6 +200,7 @@ class Controller:
         if self.debug:
             print('ticks:{}'.format(self.ticks))
             self.actions.plot()
+            print('Size of Passenger actions heap %d' % len(self.passenger_actions._data))
             print('\n\n')
         
         self.ticks += 1

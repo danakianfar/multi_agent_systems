@@ -11,10 +11,12 @@ class BusStop:
         
     def add_waiting_passenger(self, passenger):
         self.passengers_waiting.append(passenger)
+        passenger.current_stop = self
         
     def remove_waiting_passenger(self, passenger):
         assert passenger in self.passengers_waiting 
         self.passengers_waiting.remove(passenger)
+        passenger.current_stop = None
         
     def distance(self, other):
         return np.sqrt((self.x-other.x)**2 + (self.y-other.y)**2)

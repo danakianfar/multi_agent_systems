@@ -6,7 +6,7 @@ class Bus:
         self.bus_type = bus_type
         
         self.inbox = [] # (tick, sender, message)
-        self.bus_passengers = [] # (passenger_id, bus_stop)
+        self.bus_passengers = [] # (passenger_id, destination_bus_stop)
         self.previous_stop = None
         self.current_stop = init_stop # central station has to be setted as init_stop
         self.next_stop = None
