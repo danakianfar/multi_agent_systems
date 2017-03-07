@@ -13,10 +13,10 @@ class Simulation:
         self.controller.setup()
         
         if show:
-            figure, title, bus_plot, station_plot= self.init_plot()
+            figure, title, bus_plot, station_plot, bus_annotations= self.init_plot()
             self.anim = animation.FuncAnimation(figure, self.animate, 
                                            iterations, 
-                                           fargs=(title, bus_plot, station_plot, self), 
+                                           fargs=(title, bus_plot, station_plot, bus_annotations, self), 
                                            interval=interval,
                                            blit = False)
             if save_file:
@@ -29,18 +29,25 @@ class Simulation:
         self.controller.step()
  
     @staticmethod
-    def animate(i, title, bus_plot, station_plot,  self):
-        bus_plot, station_plot = self.update_plot(title, bus_plot, station_plot)
+    def animate(i, title, bus_plot, station_plot, bus_annotations,  self):
+        bus_plot, station_plot = self.update_plot(title, bus_plot, station_plot, bus_annotations)
         self.main_loop()
-        return bus_plot,station_plot
+        return bus_plot,station_plot, bus_annotations
 
-    def update_plot(self,title, bus_plot, station_plot):
+    def update_plot(self,title, bus_plot, station_plot, bus_annotations):
         buses = [(bus.x, bus.y, bus.bus_id) for bus in self.controller.buses.values()]
  
         buses_x = [bus[0] for bus in buses]
         buses_y = [bus[1] for bus in buses]
                 
         bus_plot.set_data(buses_x, buses_y)
+
+        for bus in buses:
+            if bus[2] in bus_annotations:
+                bus_annotations[bus[2]].remove()
+            
+            bus_annotations[bus[2]] = plt.annotate('%s #%s' % (bus[2], len(self.controller.buses[bus[2]].bus_passengers)), xy=(bus[0], bus[1]))
+        
 
         title.set_text('ticks:{}'.format(self.controller.ticks)) # tick counter
 
@@ -62,6 +69,7 @@ class Simulation:
         plt.plot(stop_x, stop_y, 'o')
 
         station_plot = {}
+        bus_annotations = {}
         
         for stop_id, station in enumerate(self.controller.connections):
             sx = self.controller.bus_stops[stop_id].x
@@ -81,5 +89,5 @@ class Simulation:
         
         bus_plot, = plt.plot([], [], 'o', color='g', markersize=10, marker=(4,0,0), alpha=0.3)
 
-        return plot_figure, title, bus_plot, station_plot
+        return plot_figure, title, bus_plot, station_plot, bus_annotations
     

@@ -10,12 +10,12 @@ class BusStop:
         # self.passengers_that_arrived = [] 
         
     def add_waiting_passenger(self, passenger):
-        self.passengers_waiting.append(passenger)
+        self.passengers_waiting.append(passenger.passenger_id)
         passenger.current_stop = self
         
     def remove_waiting_passenger(self, passenger):
-        assert passenger in self.passengers_waiting 
-        self.passengers_waiting.remove(passenger)
+        assert passenger.passenger_id in self.passengers_waiting 
+        self.passengers_waiting.remove(passenger.passenger_id)
         passenger.current_stop = None
         
     def distance(self, other):
