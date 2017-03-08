@@ -209,7 +209,7 @@ class Controller:
           
         if self.debug:
             print('ticks:{}'.format(self.ticks))
-            self.actions.plot()
+            self.actions.debug_print()
             print('Size of Passenger actions heap %d' % len(self.passenger_actions._data))
             print('\n\n')
         
