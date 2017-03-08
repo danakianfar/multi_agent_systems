@@ -4,13 +4,13 @@ from collections import Counter
 class SimulationState:
 
 	_positions = None # one-hot diagonal matrix, for current bus positions
-	_N = -1 # number of stations
+	_N = None # number of stations
 	_flatten = lambda l: [item for sublist in l for item in sublist]
 
 	def __init__(self, bus):
 		self.bus = bus
 
-		if _N is -1:
+		if _N is None:
 			_N = len(self.bus.controller.bus_stops)
 			_positions = np.eye(_N)
 
@@ -19,8 +19,8 @@ class SimulationState:
 
 	def get_expected_station_capacity(self):
 
-		bus_ids = self.bus.position_beliefs.internal_table
-		bus_capacities = np.array([self.bus.controller.buses{bus_id}.capacity for bus_id in bus_ids])
+		bus_ids = self.bus.position_beliefs.internal_table.keys()
+		bus_capacities = np.array([self.bus.controller.buses{bus_id}.capacity for bus_id in bus_ids]).reshape((-1, 1))
 		
 		K = len(bus_ids) # num of other buses we know about
 		M = np.zeros(K, _N) # station-bus presence distribution
@@ -36,7 +36,7 @@ class SimulationState:
 		X = np.zeros((_N, _N)) # station i -> station j: cumulative waiting time
 		for stop_id, stop in self.bus.controller.bus_stops.items():
 			for passenger in stop.passengers_waiting:
-				X[stop_id,passenger.destination] += [self.bus.controller.passenger.ticks - spawn_time]
+				X[stop_id,passenger.destination] += [self.bus.controller.passenger.ticks - passenger.spawn_time]
 		
 		return _flatten(X)
 
@@ -45,11 +45,11 @@ class SimulationState:
 		state = []
 		state.append(self.bus.capacity) # bus capacity
 
-		state.extend(get_current_bus_position) # bus position (one-hot)
+		state.extend(self.get_current_bus_position()) # bus position (one-hot)
 
-		state.extend(get_expected_station_capacity()) # expected station capacity
+		state.extend(self.get_expected_station_capacity()) # expected station capacity
 
-		state.extend(get_stations_waiting_times)
+		state.extend(self.get_stations_waiting_times())
 
 		state = np.array(state).reshape(-1,1)
 
