@@ -38,7 +38,7 @@ to init-buses
   ifelse bus_id = 24
   [
     ; 30 buses will be called
-    set busses_to_call 50   
+    set busses_to_call 10  
     
     ; create traffic table
     let i 0

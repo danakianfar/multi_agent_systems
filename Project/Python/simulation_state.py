@@ -36,7 +36,7 @@ class SimulationState:
 		X = np.zeros((_N, _N)) # station i -> station j: cumulative waiting time
 		for stop_id, stop in self.bus.controller.bus_stops.items():
 			for passenger in stop.passengers_waiting:
-				X[stop_id,passenger.destination] += [self.bus.controller.passenger.ticks - passenger.spawn_time]
+				X[stop_id,passenger.destination] += passenger.get_waiting_time()
 		
 		return _flatten(X)
 
@@ -49,7 +49,7 @@ class SimulationState:
 
 		state.extend(self.get_expected_station_capacity()) # expected station capacity
 
-		state.extend(self.get_stations_waiting_times())
+		state.extend(self.get_stations_waiting_times()) # station i -> station j cumulative waiting time
 
 		state = np.array(state).reshape(-1,1)
 
