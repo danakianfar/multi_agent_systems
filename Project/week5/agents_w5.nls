@@ -181,8 +181,6 @@ to process-votes
   
   if bus_to_add > 0 [
     ; add buses of alternating type
-    show "adding bus"
-    show bus_to_add
     add-bus bus_to_add
     set n_buses (n_buses + 1)
     set buses_to_update lput (23 + n_buses) buses_to_update
