@@ -1,9 +1,13 @@
 from controller import *
 
 class Bus:
+
+    _bus_type_capacity = {1:12, 2:60, 3:150}
+
     def __init__(self, bus_id, bus_type, init_stop, controller):
         self.bus_id = bus_id
         self.bus_type = bus_type
+        self.capacity = Bus._bus_type_capacity[self.bus_type]
         
         self.inbox = [] # (tick, sender, message)
         self.bus_passengers = [] # (passenger_id, destination_bus_stop)
@@ -21,8 +25,6 @@ class Bus:
         self.connections = controller.connections
         
         self.init_bus()
-        
-   
     
     def update(self):
         if self.previous_stop and self.next_stop:
@@ -49,7 +51,13 @@ class Bus:
         
     def pick_up_passenger(self, passenger_id):
         self.controller.pick_up_passenger(self, passenger_id)
+
+    def drop_off_passenger(self, passenger_id):
+        self.controller.drop_off_passenger(self, passenger_id)
         
+    def get_passengers_at_stop(self, stop_id):
+        return [i for i in self.controller.bus_stops[stop_id].passengers_waiting] # copy
+
     def send_message(self, bus_id, message):
         self.controller.send_message(self, bus_id, message)
         
@@ -58,7 +66,8 @@ class Bus:
     
     def execute_action(self):
         raise NotImplementedError
-    
+
+
 class TestBus(Bus):
     
     def init_bus(self):

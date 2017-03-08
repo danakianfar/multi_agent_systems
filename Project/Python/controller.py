@@ -105,6 +105,7 @@ class Controller:
             self.last_bus_id += 1 
             # create the bus
             new_bus = self.bus_class(self.last_bus_id, vehicle_type,  self.bus_stops[3], self)
+            new_bus.current_stop = self.bus_stops[3] # everyone starts at Amsterdam Centraal
             # add it to the fleet
             self.buses[self.last_bus_id] =  new_bus
         
@@ -116,10 +117,11 @@ class Controller:
         assert bus.current_stop
         assert bus_stop in self.connections[bus.current_stop.stop_id]
         
+        bus.previous_stop = bus.current_stop
+        bus.next_stop = self.bus_stops[bus_stop]
+
         def start(bus):
-            bus.previous_stop = bus.current_stop
             bus.current_stop = None
-            bus.next_stop = self.bus_stops[bus_stop]
             bus.progress = 0.3
             
         def arrive(bus):
@@ -127,48 +129,56 @@ class Controller:
             bus.next_stop = None
             bus.progress = 0
             
-        start_action = Action(self.ticks, partial(start, bus))
-        arrive_action = Action(self.ticks + self.adj_matrix[bus.current_stop.stop_id][bus_stop], partial(arrive, bus))
+        start_action = Action(self.ticks+0.5, partial(start, bus))
+        arrive_action = Action(self.ticks + self.adj_matrix[bus.previous_stop.stop_id , bus.next_stop.stop_id], partial(arrive, bus))
         
         self.actions.push(start_action)
         self.actions.push(arrive_action)
+
+    def get_distance(self, from_station, to_station):
+        return self.adj_matrix[from_station,to_station]
         
     def pick_up_passenger(self, bus, passenger_id):
         assert bus.current_stop == self.passengers[passenger_id].current_stop
 
-        def pick_up(bus, passenger):
+        # def pick_up(bus, passenger):
             # unload from station
-            self.bus_stops[bus.current_stop.stop_id].remove_waiting_passenger(passenger)
+        self.bus_stops[bus.current_stop.stop_id].remove_waiting_passenger(self.passengers[passenger_id])
 
-            # load to bus
-            bus.bus_passengers.append(passenger.passenger_id, passenger.destination.stop_id)
-            passenger.current_stop = None
+        # print('Picking up %s, at %s, capacity %s' % (passenger_id, bus.current_stop.stop_id, len(bus.bus_passengers)))
+
+        # load to bus
+        bus.bus_passengers.append((passenger_id, self.passengers[passenger_id].destination.stop_id))
+        self.passengers[passenger_id].current_stop = None
             
-        pick_up_action = Action(self.ticks, partial(pick_up,  bus, self.passengers[passenger_id]))
-        
-        self.actions.push(pick_up_action)
+        # pick_up(bus, self.passengers[passenger_id])
+        # pick_up_action = Action(self.ticks, partial(pick_up,  bus, self.passengers[passenger_id]))
+        # self.actions.push(pick_up_action)
 
 
     def drop_off_passenger(self, bus, passenger_id):
         assert passenger_id in [p[0] for p in bus.bus_passengers]
 
-        def drop_off(bus, passenger):
+        # def drop_off(bus, passenger):
             # unload from bus
-            bus.bus_passengers.remove((passenger.passenger_id, passenger.destination.stop_id))
+        bus.bus_passengers.remove((passenger_id, self.passengers[passenger_id].destination.stop_id))
 
-
-            if passenger.destination == bus.current_stop:
-                self.deliver_passenger(passenger)
-            else: 
-                # load to station
-                self.bus_stops[bus.current_stop.stop_id].add_waiting_passenger(passenger)
-                
-        drop_off_action = Action(self.ticks, partial(drop_off, bus, self.passengers[passenger_id]))
-        
-        self.actions.push(drop_off_action)
+        # print('Dropping off %s, at %s, capacity %s' % (passenger_id, bus.current_stop.stop_id, len(bus.bus_passengers)))
+            
+        if self.passengers[passenger_id].destination == bus.current_stop:
+            # print('Passenger %s delivered at %s' % (passenger_id, bus.current_stop))
+            self.deliver_passenger(self.passengers[passenger_id])
+        else: 
+            # load to station
+            self.bus_stops[bus.current_stop.stop_id].add_waiting_passenger(self.passengers[passenger_id])
+                                                                                
+        # drop_off(bus, self.passengers[passenger_id])
+        # drop_off_action = Action(self.ticks, partial(drop_off, bus, self.passengers[passenger_id]))
+        # self.actions.push(drop_off_action)
 
     def deliver_passenger(self, passenger):
-        print('Passenger delivered %s' % passenger.passenger_id)
+        pass 
+        # print('Passenger delivered %s' % passenger.passenger_id)
         
     def send_message(self, sender, bus_id, message):
         
@@ -178,7 +188,7 @@ class Controller:
         send_action = Action(self.ticks, partial(send_message, self.buses[bus_id], self.ticks, sender.bus_id ,message))
         
         self.actions.push(send_action)
-        
+
             
     def step(self):
 
