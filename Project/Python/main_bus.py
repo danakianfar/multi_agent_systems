@@ -1,5 +1,6 @@
 from bus import Bus
 from position_beliefs import *
+from simulation_state import SimulationState
 
 
 class MainBus(Bus):
@@ -8,13 +9,17 @@ class MainBus(Bus):
     def init_bus(self):
         self.arrival_time = 0
         self.position_beliefs = PositionBeliefs(self)
+        self.created_buses_counter = 0 # used only in bus 24
 
     def execute_action(self):
         if self.current_stop:
             self.make_decisions()
 
-        if self.controller.ticks % 5 == 0 and self.bus_id == 24 and self.controller.ticks <= 50:
+        if self.controller.ticks % 5 == 0 and not self.current_stop and self.bus_id == 24 and self.controller.ticks <= 50:
             self.add_bus(1)
+            self.created_buses_counter += 1 
+            self.position_beliefs.internal_table[self.bus_id + self.created_buses_counter] = (self.controller.ticks, 3)
+
 
     def make_decisions(self):
 
@@ -45,8 +50,8 @@ class MainBus(Bus):
         self.send_messages()
 
     def generate_state(self):
-        # TODO implement
-        return None
+        state = SimulationState(self)
+        return state.get_state()
 
     def compute_next(self, state):
         # TODO neural code goes here
@@ -120,8 +125,8 @@ class MainBus(Bus):
 
         message = {'type': MainBus._MSG_UPDATE, 'content': self.position_beliefs.prepare_message()}
 
-        for bus_id, probability in self.position_beliefs.calculate_transmission_probability():
+        for bus_id, probability in self.position_beliefs.calculate_transmission_probability().items():
 
-            if np.rand.rand() <= probability:  # Bernoulli coin flip with probability
-                self.send_message(bus_id, self.position_beliefs, message)
+            if np.random.rand() <= probability:  # Bernoulli coin flip with probability
+                self.send_message(bus_id, message)
                 self.position_beliefs.update_external_table(bus_id)

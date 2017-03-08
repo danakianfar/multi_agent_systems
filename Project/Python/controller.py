@@ -44,6 +44,7 @@ class Controller:
     def setup(self):
         self.add_bus(1)
         self.init_daily_ridership()
+        self.init_probability_distribution()
                 
     def init_daily_ridership(self):
 
@@ -103,7 +104,30 @@ class Controller:
             for dest in self.connections[i]:
                 self.adj_matrix[orig, dest] = np.sqrt((xs[orig] - xs[dest])**2 + (ys[orig] - ys[dest])**2)
         
-    
+    def init_probability_distribution(self):
+        print('Initializing Prob Dist')
+        # initialization of the m_support matrix, TODO replace with exact implementation
+        S = len(self.bus_stop_names)
+        T = 10
+        P = np.zeros((T+1, S, S))
+        B = 1000
+
+        for s in range(S):    
+            distro = np.zeros(S)
+            distro[s] = B
+            P[0, :, s] = distro
+
+            for t in range(T):
+                aux_distro = np.zeros(S)
+                for s_prime in range(S):
+                    for b in range(int(distro[s_prime])):
+                        dest = np.random.choice(self.connections[s_prime])
+                        aux_distro[dest] += 1
+                distro = aux_distro
+                P[t+1, :, s] = distro
+        self._m_support = P / B 
+
+
     def add_bus(self, vehicle_type):
         def bus_creation(vehicle_type):
             # increment the id
@@ -243,7 +267,8 @@ class Controller:
         for logger in self.loggers:
             if self.ticks % logger.save_every == 0:
                 data = logger.function(self)
-                if data:
+
+                if isinstance(data, np.ndarray) or data:
                     self.logged_data[logger.name].append(data)
         
         self.ticks += 1
