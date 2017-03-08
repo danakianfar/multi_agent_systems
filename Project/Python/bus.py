@@ -3,11 +3,16 @@ from controller import *
 class Bus:
 
     _bus_type_capacity = {1:12, 2:60, 3:150}
+    _bus_type_leasing_cost = {1:6000, 2:12000, 3:20000}
+    _bus_type_travel_cost = {1:1, 2:1.5, 3:2}
+
 
     def __init__(self, bus_id, bus_type, init_stop, controller):
         self.bus_id = bus_id
         self.bus_type = bus_type
         self.capacity = Bus._bus_type_capacity[self.bus_type]
+        self.leasing_cost = Bus._bus_type_leasing_cost[self.bus_type]
+        self.travel_cost = 0
         
         self.inbox = [] # (tick, sender, message)
         self.bus_passengers = [] # (passenger_id, destination_bus_stop)
@@ -25,12 +30,17 @@ class Bus:
         self.connections = controller.connections
         
         self.init_bus()
+
+    def get_total_cost(self):
+        return self.leasing_cost + self.travel_cost
     
     def update(self):
         if self.previous_stop and self.next_stop:
             distance = self.controller.adj_matrix[self.previous_stop.stop_id, self.next_stop.stop_id]
             self.x = self.previous_stop.x + (self.next_stop.x - self.previous_stop.x) * self.progress
             self.y = self.previous_stop.y + (self.next_stop.y - self.previous_stop.y) * self.progress
+        
+            self.travel_cost += Bus._bus_type_travel_cost[self.bus_type]
         else:
             self.x = self.current_stop.x
             self.y = self.current_stop.y

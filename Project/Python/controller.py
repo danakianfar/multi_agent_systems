@@ -109,11 +109,14 @@ class Controller:
             new_bus = self.bus_class(self.last_bus_id, vehicle_type,  self.bus_stops[3], self)
             new_bus.current_stop = self.bus_stops[3] # everyone starts at Amsterdam Centraal
             # add it to the fleet
-            self.buses[self.last_bus_id] =  new_bus
+            self.buses[self.last_bus_id] =  new_bus 
         
         bus_creation_action = Action(self.ticks + 1, partial(bus_creation, vehicle_type))
         
         self.actions.push(bus_creation_action)
+
+    def get_execution_cost(self):
+        return sum([bus.get_total_cost() for bus in self.buses.values()])
         
     def travel_to(self, bus, bus_stop):
         assert bus.current_stop
