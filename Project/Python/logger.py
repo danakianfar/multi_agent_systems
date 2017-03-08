@@ -29,3 +29,40 @@ class ExecutionCostLogger(Logger):
             return controller.get_execution_cost()
 
         Logger.__init__(self, 'Execution Cost Logger', get_execution_cost, save_every=save_every)
+
+class TotalWaitingCostLogger(Logger):
+
+    def __init__(self, save_every=1):
+
+        def get_waiting_cost(controller):
+            return controller.get_waiting_cost()
+
+        Logger.__init__(self, 'Total Waiting Cost Logger', get_waiting_cost, save_every=save_every)
+
+
+class AverageWaitingCostLogger(Logger):
+    def __init__(self, save_every=1):
+
+        def get_average_waiting_cost(controller):
+            n_passengers = controller.get_number_of_passengers()
+            if n_passengers > 0:
+                return controller.get_waiting_cost() / n_passengers
+            else :
+                return 0
+
+        Logger.__init__(self, 'Average Waiting Cost Logger', get_average_waiting_cost, save_every=save_every)
+
+
+class NPassengersLogger(Logger):
+    def __init__(self, save_every=1):
+
+        def get_n_passengers(controller):
+            n_passengers = controller.get_number_of_passengers()
+            return n_passengers
+
+        Logger.__init__(self, 'Number of Passengers Logger', get_n_passengers, save_every=save_every)
+
+
+class TotalCostLogger(Logger):
+    def __init__(self, save_every=1):
+        Logger.__init__(self, 'Total Cost Logger', lambda c: c.get_total_cost(), save_every=save_every)

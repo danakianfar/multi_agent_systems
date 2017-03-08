@@ -15,7 +15,9 @@ class Controller:
      'Hendrikkade': 9, 'Leidseplein': 10, 'Lelylaan': 11, 'Muiderpoort': 12, 'Museumplein': 13,
      'RAI': 14, 'SciencePark': 15, 'Sloterdijk': 16, 'Surinameplein': 17, 'UvA': 18,
      'VU': 19, 'Waterlooplein': 20, 'Weesperplein': 21,'Wibautstraat': 22, 'Zuid': 23}
-    
+
+    _COST_K = 1e-1
+
     def __init__(self, bus_class=Bus, loggers=[]):
         self.ticks = 0
         self.buses = {}
@@ -37,6 +39,7 @@ class Controller:
 
         self.loggers = loggers
         self.logged_data = {l.name: [] for l in loggers}
+
         
     def setup(self):
         self.add_bus(1)
@@ -117,7 +120,33 @@ class Controller:
 
     def get_execution_cost(self):
         return sum([bus.get_total_cost() for bus in self.buses.values()])
-        
+
+    def get_waiting_cost(self):
+        cost = 0
+        for bus in self.buses.values():
+            cost += sum([self.passengers[passenger_id].get_waiting_time() for passenger_id, _ in bus.bus_passengers])
+
+        for bus_stop in self.bus_stops.values():
+            cost += sum([self.passengers[passenger_id].get_waiting_time() for passenger_id in bus_stop.passengers_waiting])
+
+        return cost
+
+    def get_number_of_passengers(self):
+        n = 0
+        for bus in self.buses.values():
+            wait_in_bus = [self.passengers[passenger_id].get_waiting_time() for passenger_id, _ in bus.bus_passengers]
+            n += len(wait_in_bus)
+
+        for bus_stop in self.bus_stops.values():
+            wait_in_stop = [self.passengers[passenger_id].get_waiting_time() for passenger_id in
+                            bus_stop.passengers_waiting]
+            n += len(wait_in_stop)
+        return n
+
+    def get_total_cost(self):
+        return Controller._COST_K * self.get_waiting_cost() + self.get_execution_cost()
+
+
     def travel_to(self, bus, bus_stop):
         assert bus.current_stop
         assert bus_stop in self.connections[bus.current_stop.stop_id]
