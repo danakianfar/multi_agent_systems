@@ -5,6 +5,7 @@ from bus import Bus, TestBus
 from action import *
 from bus_stop import *
 from passenger import *
+from logger import *
 
 
 class Controller:
@@ -15,7 +16,7 @@ class Controller:
      'RAI': 14, 'SciencePark': 15, 'Sloterdijk': 16, 'Surinameplein': 17, 'UvA': 18,
      'VU': 19, 'Waterlooplein': 20, 'Weesperplein': 21,'Wibautstraat': 22, 'Zuid': 23}
     
-    def __init__(self, bus_class=Bus , debug=False):
+    def __init__(self, bus_class=Bus, loggers=[]):
         self.ticks = 0
         self.buses = {}
         self.last_bus_id = 23
@@ -25,8 +26,6 @@ class Controller:
         self.total_travel_time = 0
         self.communication_cost = 0
         
-        self.debug = debug
-        
         self.bus_stops = {}
         self.passengers = {}
         self.passenger_count = 0
@@ -35,6 +34,9 @@ class Controller:
         
         self.actions = ActionHeap()
         self.passenger_actions = ActionHeap()
+
+        self.loggers = loggers
+        self.logged_data = {l.name: [] for l in loggers}
         
     def setup(self):
         self.add_bus(1)
@@ -63,7 +65,7 @@ class Controller:
                 
                 
                 for i in range(passenger_count): 
-                    passenger = Passenger(self.passenger_count , source, destination, tick)
+                    passenger = Passenger(self.passenger_count , source, destination, tick, self)
                     self.passengers[passenger.passenger_id] = passenger
                     self.passenger_count +=1 
                     passengers.append(passenger)
@@ -177,8 +179,7 @@ class Controller:
         # self.actions.push(drop_off_action)
 
     def deliver_passenger(self, passenger):
-        pass 
-        # print('Passenger delivered %s' % passenger.passenger_id)
+        print('Passenger delivered %s' % passenger.passenger_id)
         
     def send_message(self, sender, bus_id, message):
         
@@ -206,11 +207,11 @@ class Controller:
         while self.actions.peek() == self.ticks and self.actions.peek() != -1:
             action = self.actions.pop()
             action()
-          
-        if self.debug:
-            print('ticks:{}'.format(self.ticks))
-            self.actions.debug_print()
-            print('Size of Passenger actions heap %d' % len(self.passenger_actions._data))
-            print('\n\n')
+
+        for logger in self.loggers:
+            if self.ticks % logger.save_every == 0:
+                data = logger.function(self)
+                if data:
+                    self.logged_data[logger.name].append(data)
         
         self.ticks += 1

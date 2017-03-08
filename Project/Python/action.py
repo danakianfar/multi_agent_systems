@@ -22,7 +22,7 @@ class ActionHeap(object):
         else:
             return -1
         
-    def debug_print(self):
+    def plot(self):
         print(self._data)
         
         

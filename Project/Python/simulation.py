@@ -5,28 +5,30 @@ from controller import *
 import matplotlib.cm as cm
 
 class Simulation:
-    def __init__(self, bus_class=Bus , iterations=100, show=False, save_file=None, interval=100, debug=False):
-        self.debug = debug
-        
-        self.controller = Controller(bus_class, debug=debug)
-        
+    def __init__(self, bus_class=Bus, loggers=[]):
+
+        self.controller = Controller(bus_class, loggers=loggers)
         self.controller.setup()
-        
-        if show:
-            figure, title, bus_plot, station_plot, bus_annotations= self.init_plot()
-            self.anim = animation.FuncAnimation(figure, self.animate, 
-                                           iterations, 
-                                           fargs=(title, bus_plot, station_plot, bus_annotations, self), 
-                                           interval=interval,
-                                           blit = False)
-            if save_file:
-                anim.save(save_file)
-        else:
-            for _ in range(iterations):
-                self.main_loop()
+
     
     def main_loop(self):
         self.controller.step()
+
+    def execute(self, iterations=100, animate=False, save_file=None, interval=100):
+        if animate:
+            figure, title, bus_plot, station_plot, bus_annotations= self.init_plot()
+            self.anim = animation.FuncAnimation(figure, self.animate,
+                                           iterations,
+                                           fargs=(title, bus_plot, station_plot, bus_annotations, self),
+                                           interval=interval,
+                                           blit = False)
+            if save_file:
+                self.anim.save(save_file)
+        else:
+            for _ in range(iterations):
+                self.main_loop()
+
+        return self.controller.logged_data
  
     @staticmethod
     def animate(i, title, bus_plot, station_plot, bus_annotations,  self):
