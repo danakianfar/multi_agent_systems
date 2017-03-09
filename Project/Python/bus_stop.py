@@ -26,3 +26,9 @@ class BusStop:
             return self.stop_id == other.stop_id
         else:
             return False
+
+    def __str__(self):
+        return "Stop # %s" % self.stop_id
+
+    def __repr__(self):
+        return str(self)

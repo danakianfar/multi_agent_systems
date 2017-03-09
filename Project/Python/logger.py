@@ -12,13 +12,13 @@ class BusPositionLogger(Logger):
         if bus_id:
             def log_one_position(controller):
                 if bus_id in controller.buses:
-                    return controller.buses[bus_id].next_stop.stop_id
+                    return controller.buses[bus_id].next_stop
                 else:
                     return False
             Logger.__init__(self, 'Bus {} Logger'.format(bus_id), log_one_position, save_every=save_every)
         else:
             def log_all_positions(controller):
-                return {bus.bus_id:bus.next_stop.stop_id for bus in controller.buses.values()}
+                return {bus.bus_id:bus.next_stop for bus in controller.buses.values()}
             Logger.__init__(self, 'All Buses Logger', log_all_positions, save_every=save_every)
 
 class ExecutionCostLogger(Logger):

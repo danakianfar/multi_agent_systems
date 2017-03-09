@@ -3,6 +3,7 @@ from collections import Counter
 
 class SimulationState:
 
+	# TODO proper static variables
 	_positions = None # one-hot diagonal matrix, for current bus positions
 	_N = None # number of stations
 	_flatten = lambda l: [item for sublist in l for item in sublist]
@@ -52,7 +53,7 @@ class SimulationState:
 
 		state.extend(self.get_stations_waiting_times()) # station i -> station j cumulative waiting time
 
-		state = np.array(state).reshape(-1,1)
+		state = np.array(state).reshape((1,-1))
 
 		return state
 

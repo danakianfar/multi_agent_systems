@@ -6,6 +6,7 @@ from action import *
 from bus_stop import *
 from passenger import *
 from logger import *
+from destination_model import *
 
 
 class Controller:
@@ -39,6 +40,10 @@ class Controller:
 
         self.loggers = loggers
         self.logged_data = {l.name: [] for l in loggers}
+
+        self.destination_model = DestinationModel()
+
+        self.replay_memory = []
 
         
     def setup(self):
@@ -134,7 +139,6 @@ class Controller:
             self.last_bus_id += 1 
             # create the bus
             new_bus = self.bus_class(self.last_bus_id, vehicle_type,  self.bus_stops[3], self)
-            new_bus.current_stop = self.bus_stops[3] # everyone starts at Amsterdam Centraal
             # add it to the fleet
             self.buses[self.last_bus_id] =  new_bus 
         
@@ -235,7 +239,7 @@ class Controller:
         # self.actions.push(drop_off_action)
 
     def deliver_passenger(self, passenger):
-        print('Passenger delivered %s' % passenger.passenger_id)
+        print('Passenger delivered %s at time %s' % (passenger.passenger_id, self.ticks))
         
     def send_message(self, sender, bus_id, message):
         
@@ -245,6 +249,9 @@ class Controller:
         send_action = Action(self.ticks, partial(send_message, self.buses[bus_id], self.ticks, sender.bus_id ,message))
         
         self.actions.push(send_action)
+
+    def store_replay(self, bus_experience):
+        self.replay_memory.append(bus_experience)
 
             
     def step(self):

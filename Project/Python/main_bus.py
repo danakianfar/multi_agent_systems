@@ -10,9 +10,14 @@ class MainBus(Bus):
         self.arrival_time = 0
         self.position_beliefs = PositionBeliefs(self)
         self.created_buses_counter = 0 # used only in bus 24
+        self.destination_model = self.controller.destination_model 
+        self.previous_cost = 0
+        self.previous_state = None
+        self.previous_action = None
+        self.exploration_parameter = 0.05
 
     def execute_action(self):
-        if self.current_stop:
+        if self.current_stop: # call only when at a station
             self.make_decisions()
 
         if self.controller.ticks % 5 == 0 and not self.current_stop and self.bus_id == 24 and self.controller.ticks <= 50:
@@ -26,6 +31,9 @@ class MainBus(Bus):
         # drop all passengers
         self.drop_all_passengers()
 
+        # Set reward from previous state
+        reward = - self.controller.get_total_cost() + self.previous_cost
+
         # check inbox
         for tick, sender, message in self.inbox:
 
@@ -37,34 +45,70 @@ class MainBus(Bus):
         self.inbox.clear()
 
         # compute next station
-        self.travel_to(self.compute_next_station())
+        action, state = self.compute_next_station()
 
-        # update arrival time
-        self.arrival_time = self.controller.ticks + np.round(
-            self.controller.get_distance(self.previous_stop.stop_id, self.next_stop.stop_id))
+        # Don't do anything if told to stay put
+        if action != self.current_stop.stop_id:
+            self.travel_to(action)
 
-        # pick up passengers
-        self.pick_up_passengers()
+            # update arrival time
+            self.arrival_time = self.controller.ticks + np.round(
+                self.controller.get_distance(self.previous_stop.stop_id, self.next_stop.stop_id))
+
+            # pick up passengers
+            self.pick_up_passengers()
 
         # send messages
         self.send_messages()
+
+        # Save to replay memory ( S[t-1], A[t-1], R[t-1], S[t] )
+        if self.previous_action:
+            action_vector = np.eye(1 , len(self.controller.bus_stops), self.previous_action)
+            self.controller.store_replay((self.previous_state, 
+                action_vector, reward, state))
+
+        # Save current state & action
+        self.previous_action = action
+        self.previous_state = state
+
 
     def generate_state(self):
         state = SimulationState(self)
         return state.get_state()
 
     def compute_next(self, state):
-        # TODO neural code goes here
-        return np.random.choice(self.connections[self.current_stop.stop_id])
+        
+        best_score = - np.inf
+        best_action = None
+
+        # Evaluate every possible adjacent station to visit (including self)
+        possible_actions = self.connections[self.current_stop.stop_id] + [self.current_stop.stop_id]
+
+        # Exploration policy
+        if np.random.rand() < self.exploration_parameter:
+            best_action = np.random.choice(possible_actions)
+            best_score = 100
+        
+        else: # Exploitation policy            
+            for next_station in possible_actions:
+                action = np.eye(1 , len(self.controller.bus_stops), next_station) # one-hot encoding of next station
+
+                score = self.destination_model.predict(state, action)[0,0]
+                # print(next_station, score)
+                if score > best_score:
+                    best_score = score
+                    best_action = next_station
+
+        return best_action, best_score
 
     def compute_next_station(self):
         # generate state
         state = self.generate_state()
 
         # compute next
-        next = self.compute_next(state)
+        action, score = self.compute_next(state)
 
-        return next
+        return action, state
 
     def drop_all_passengers(self):
         passengers_in_bus = [passenger[0] for passenger in self.bus_passengers]

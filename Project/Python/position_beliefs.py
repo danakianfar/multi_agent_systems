@@ -9,7 +9,15 @@ class PositionBeliefs:
 
     def prepare_message(self):
         message = {k:v for k,v in self.internal_table.items()}
-        message[self.bus.bus_id] = (self.bus.arrival_time, self.bus.next_stop.stop_id)
+
+        destination = self.bus.next_stop 
+        arrival_time = self.bus.arrival_time
+
+        if not destination:
+            arrival_time = self.bus.controller.ticks + 1
+            destination = self.bus.current_stop
+
+        message[self.bus.bus_id] = (arrival_time, destination.stop_id)
 
         return message
 
@@ -43,7 +51,13 @@ class PositionBeliefs:
                     self.external_table[sender_id] = time_station  
             
     def update_external_table(self, bus_id):
-        self.external_table[bus_id] = (self.bus.arrival_time, self.bus.next_stop.stop_id)
+        destination = self.bus.next_stop
+        arrival_time = self.bus.arrival_time
+        if not destination:
+            arrival_time = self.bus.controller.ticks + 1
+            destination = self.bus.current_stop
+
+        self.external_table[bus_id] = (self.bus.arrival_time, destination.stop_id)
         
     def compute_internal_probability(self, bus_id):
         return self.compute_probability_distribution(bus_id, self.internal_table)
