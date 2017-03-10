@@ -19,6 +19,26 @@ class Controller:
 
     _COST_K = 1e-1
 
+    def reset(self):
+        self.num_passengers_delivered = 0
+        self.buses.clear()
+        
+        self.total_cost = 0
+        self.total_travel_time = 0
+        self.communication_cost = 0
+        
+        self.passengers.clear()
+        [stop.reset() for stop in self.bus_stops.values()]
+
+        self.passenger_count = 0
+        
+        self.actions = ActionHeap()
+        self.passenger_actions = ActionHeap()
+
+        self.logged_data = {l.name: [] for l in self.loggers}
+
+        self.replay_memory.clear()
+
     def __init__(self, bus_class=Bus, loggers=[]):
         self.ticks = 0
         self.buses = {}
@@ -32,6 +52,7 @@ class Controller:
         self.bus_stops = {}
         self.passengers = {}
         self.passenger_count = 0
+        self.num_passengers_delivered = 0 
 
         self.init_map()
         
@@ -41,17 +62,18 @@ class Controller:
         self.loggers = loggers
         self.logged_data = {l.name: [] for l in loggers}
 
-        self.destination_model = DestinationModel()
+        self.destination_model = DestinationModel(self.connections)
 
         self.replay_memory = []
 
         
-    def setup(self):
+    def setup(self, add_arrivals_noise=False):
         self.add_bus(1)
-        self.init_daily_ridership()
-        self.init_probability_distribution()
+        self.init_daily_ridership(add_arrivals_noise)
                 
-    def init_daily_ridership(self):
+    def init_daily_ridership(self, add_arrivals_noise=False):
+
+        assert not add_arrivals_noise
 
         def passengers_arrival_at_tick(row):
             
@@ -109,6 +131,8 @@ class Controller:
             for dest in self.connections[i]:
                 self.adj_matrix[orig, dest] = np.sqrt((xs[orig] - xs[dest])**2 + (ys[orig] - ys[dest])**2)
         
+        self.init_probability_distribution()
+
     def init_probability_distribution(self):
         print('Initializing Prob Dist')
         # initialization of the m_support matrix, TODO replace with exact implementation
@@ -172,7 +196,7 @@ class Controller:
         return n
 
     def get_total_cost(self):
-        return Controller._COST_K * self.get_waiting_cost() + self.get_execution_cost()
+        return (Controller._COST_K * self.get_waiting_cost() + self.get_execution_cost()) * 1E-6
 
 
     def travel_to(self, bus, bus_stop):
@@ -239,8 +263,9 @@ class Controller:
         # self.actions.push(drop_off_action)
 
     def deliver_passenger(self, passenger):
-        print('Passenger delivered %s at time %s' % (passenger.passenger_id, self.ticks))
-        
+        # print('Passenger delivered %s at time %s' % (passenger.passenger_id, self.ticks))
+        self.num_passengers_delivered += 1
+
     def send_message(self, sender, bus_id, message):
         
         def send_message(receiver, time, sender_id, message):

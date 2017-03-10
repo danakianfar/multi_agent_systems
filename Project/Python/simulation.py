@@ -25,7 +25,8 @@ class Simulation:
             if save_file:
                 self.anim.save(save_file)
         else:
-            for _ in range(iterations):
+            for i in range(iterations):
+                print('\r %d / %d ' % (i+1, iterations), end='')
                 self.main_loop()
 
         return self.controller.logged_data
@@ -58,6 +59,11 @@ class Simulation:
             station_plot[stop_id] = plt.annotate('%s,%s\n(# %s)' % (str(stop.stop_id), stop.name[:3], len(stop.passengers_waiting)), xy=(stop.x+0.3, stop.y-0.3))
         
         return bus_plot, station_plot
+
+    
+    def reset(self, add_arrivals_noise=False):
+        self.controller.reset()
+        self.controller.setup(add_arrivals_noise)
 
     def init_plot(self):
         plot_figure = plt.figure(figsize=(10,8))

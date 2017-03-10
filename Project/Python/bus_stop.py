@@ -27,6 +27,9 @@ class BusStop:
         else:
             return False
 
+    def reset(self):
+        self.passengers_waiting.clear()
+
     def __str__(self):
         return "Stop # %s" % self.stop_id
 
