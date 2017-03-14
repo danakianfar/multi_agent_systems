@@ -5,6 +5,8 @@ from simulation_state import compute_state_vector
 
 class MainBus(Bus):
     _MSG_UPDATE = 'update_table'
+    _SPREAD_TIME = 100
+    _EXPLORATION_PROBABILITY = 0.05
 
     def init_bus(self):
         self.arrival_time = 0
@@ -14,10 +16,13 @@ class MainBus(Bus):
         self.previous_cost = 0
         self.previous_state = None
         self.previous_action = None
-        self.exploration_parameter = 0.05
+        self.exploration_parameter = 1
 
     def execute_action(self):
         if self.current_stop: # call only when at a station
+            if self.controller.ticks >= MainBus._SPREAD_TIME and self.exploration_parameter == 1:
+                self.exploration_parameter = MainBus._EXPLORATION_PROBABILITY
+
             self.make_decisions()
 
         if self.controller.ticks % 5 == 0 and not self.current_stop and self.bus_id == 24 and self.controller.ticks <= 50:

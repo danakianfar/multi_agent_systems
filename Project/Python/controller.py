@@ -131,6 +131,9 @@ class Controller:
 
         self.init_probability_distribution()
 
+    def save_destination_model(self, file_name):
+        self.destination_model.save(file_name)
+
     def init_probability_distribution(self):
         print('Initializing Prob Dist')
         # initialization of the m_support matrix, TODO replace with exact implementation
@@ -177,7 +180,8 @@ class Controller:
         return self.actual_passenger_count
 
     def get_total_cost(self):
-        return (Controller._COST_K * self.get_waiting_cost() + self.get_execution_cost()) * 1E-6
+        #return (Controller._COST_K * self.get_waiting_cost() + self.get_execution_cost()) * 1E-6
+        return self.get_waiting_cost() * 1E-6
 
     def travel_to(self, bus, bus_stop):
         assert bus.current_stop
