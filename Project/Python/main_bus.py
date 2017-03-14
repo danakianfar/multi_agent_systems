@@ -1,6 +1,6 @@
 from bus import Bus
 from position_beliefs import *
-from simulation_state import SimulationState
+from simulation_state import compute_state_vector
 
 
 class MainBus(Bus):
@@ -73,8 +73,8 @@ class MainBus(Bus):
 
 
     def generate_state(self):
-        state = SimulationState(self)
-        return state.get_state()
+        state = compute_state_vector(self)
+        return state
 
     def compute_next(self, state):
         
