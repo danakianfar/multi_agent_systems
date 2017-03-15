@@ -1,9 +1,14 @@
 from flask import Flask
-app = Flask('pure_ai_no_ethics')
+from flask import request
 
-@app.route("/netlogo")
+app = Flask('NetLogo_API')
+
+@app.route("/tick", methods = ['POST'])
 def hello():
-    return "(1, 2, 3)"
+    print(request.form)
+    print(request.form['bus24'])
+    print(request.form['stop'])
+    return request.form['bus24']
 
 if __name__ == "__main__":
     app.run()

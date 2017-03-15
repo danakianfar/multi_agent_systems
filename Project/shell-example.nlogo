@@ -15,12 +15,16 @@ extensions [shell string url]
 
 to go
 
-  let a (shell:exec "C:\\Users\\Dana\\Anaconda3\\python.exe " "test.py" "ar1" "ar2" "ar3" ) ;; passes dummy params to python, see test.py
-  show string:split string:trim a "," ;; split and print the python STDOUT output
-  show length (string:split string:trim a " ")
+  ;;let a (shell:exec "C:\\Users\\Dana\\Anaconda3\\python.exe " "test.py" "ar1" "ar2" "ar3" ) ;; passes dummy params to python, see test.py
+  ;;show string:split string:trim a "," ;; split and print the python STDOUT output
+  ;;show length (string:split string:trim a " ")
 
 
-  let status url:get "http://127.0.0.1:5000/netlogo"
+  ;;let status url:get "http://127.0.0.1:5000/tick"
+  ;;output-print status
+
+  let status url:post "http://127.0.0.1:5000/tick"
+                 (list ["bus" "1"] ["stop" "2"] )
   output-print status
 end
 @#$#@#$#@
