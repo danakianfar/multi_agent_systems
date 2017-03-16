@@ -33,6 +33,7 @@ class Simulation:
  
     @staticmethod
     def animate(i, title, bus_plot, station_plot, bus_annotations,  self):
+        print('\r{}'.format(i), end='')
         bus_plot, station_plot = self.update_plot(title, bus_plot, station_plot, bus_annotations)
         self.main_loop()
         return bus_plot,station_plot, bus_annotations

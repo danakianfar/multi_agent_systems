@@ -6,7 +6,7 @@ from simulation_state import compute_state_vector
 class MainBus(Bus):
     _MSG_UPDATE = 'update_table'
     _SPREAD_TIME = 100
-    _EXPLORATION_PROBABILITY = 0.05
+    _EXPLORATION_PROBABILITY = 0.0 #TODO reset to 0.05
 
     def init_bus(self):
         self.arrival_time = 0
@@ -25,9 +25,9 @@ class MainBus(Bus):
 
             self.make_decisions()
 
-        if self.controller.ticks % 5 == 0 and not self.current_stop and self.bus_id == 24 and self.controller.ticks <= 50:
+        if self.controller.ticks % 5 == 0 and not self.current_stop and self.bus_id == 24 and self.controller.ticks <= 50 and self.created_buses_counter < 1:
             self.add_bus(1)
-            self.created_buses_counter += 1 
+            self.created_buses_counter += 1
             self.position_beliefs.internal_table[self.bus_id + self.created_buses_counter] = (self.controller.ticks, 3)
 
 
@@ -87,22 +87,30 @@ class MainBus(Bus):
         best_action = None
 
         # Evaluate every possible adjacent station to visit (including self)
-        possible_actions = self.connections[self.current_stop.stop_id] + [self.current_stop.stop_id]
+        possible_actions = self.connections[self.current_stop.stop_id] #+ [self.current_stop.stop_id]
 
         # Exploration policy
         if np.random.rand() < self.exploration_parameter:
             best_action = np.random.choice(possible_actions)
             best_score = 100
-        
-        else: # Exploitation policy            
-            for next_station in possible_actions:
-                action = np.eye(1 , len(self.controller.bus_stops), next_station) # one-hot encoding of next station
 
-                score = self.destination_model.predict(state, action)[0,0]
-                # print(next_station, score)
-                if score > best_score:
-                    best_score = score
-                    best_action = next_station
+        else: # Exploitation policy
+            # for next_station in possible_actions:
+            #     action = np.eye(1, len(self.controller.bus_stops), next_station) # one-hot encoding of next station
+            #
+            #     score = self.destination_model.predict(state, action)[0,0]
+            #     # print(next_station, score)
+            #     if score > best_score:
+            #         best_score = score
+            #         best_action = next_station
+
+            for next_station in possible_actions:
+                    score = -state[0, 24 + next_station] + state[0, 2*24 + next_station] + \
+                            state[0, 3*24 + next_station] + 0*state[0, 4*24 + next_station]
+                    # print(next_station, score)
+                    if score > best_score:
+                        best_score = score
+                        best_action = next_station
 
         return best_action, best_score
 
@@ -149,7 +157,7 @@ class MainBus(Bus):
             for i in range(len(ordering)):
                 if x[i] > 0:
                     selected_passengers.append(passengers[ordering[i]].passenger_id)
-                # If the bus is full, brake
+                # If the bus is full, break
                 if len(selected_passengers) == self.capacity:
                     break
 
@@ -158,14 +166,6 @@ class MainBus(Bus):
     def pick_up_passengers(self):
         # passengers_at_stop = self.get_passengers_at_stop(self.current_stop.stop_id)
         selected_passengers = self.select_passengers()
-
-        # for passenger_id in selected_passengers:
-        #
-        #     if len(self.bus_passengers) == self.capacity:
-        #         # print('Bus full')
-        #         break
-        #
-        #     self.pick_up_passenger(passenger_id)
 
         for passenger_id in selected_passengers:
             self.pick_up_passenger(passenger_id)
