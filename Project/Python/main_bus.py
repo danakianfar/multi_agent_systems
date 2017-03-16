@@ -5,18 +5,19 @@ from simulation_state import compute_state_vector
 
 class MainBus(Bus):
     _MSG_UPDATE = 'update_table'
-    _SPREAD_TIME = 100
+    _SPREAD_TIME = 0
     _EXPLORATION_PROBABILITY = 0.0 #TODO reset to 0.05
 
     def init_bus(self):
         self.arrival_time = 0
         self.position_beliefs = PositionBeliefs(self)
         self.created_buses_counter = 0 # used only in bus 24
-        self.destination_model = self.controller.destination_model 
+        self.destination_model = self.controller.destination_model
         self.previous_cost = 0
         self.previous_state = None
         self.previous_action = None
         self.exploration_parameter = 1
+        self.state = None
 
     def execute_action(self):
         if self.current_stop: # call only when at a station
@@ -69,7 +70,7 @@ class MainBus(Bus):
         # Save to replay memory ( S[t-1], A[t-1], R[t-1], S[t] )
         if self.previous_action:
             action_vector = np.eye(1 , len(self.controller.bus_stops), self.previous_action)
-            self.controller.store_replay((self.previous_state, 
+            self.controller.store_replay((self.previous_state,
                 action_vector, reward, state))
 
         # Save current state & action
@@ -82,7 +83,7 @@ class MainBus(Bus):
         return state
 
     def compute_next(self, state):
-        
+
         best_score = - np.inf
         best_action = None
 
@@ -104,19 +105,25 @@ class MainBus(Bus):
             #         best_score = score
             #         best_action = next_station
 
+            print('Yet another decision of bus %d' %self.bus_id)
             for next_station in possible_actions:
-                    score = -state[0, 24 + next_station] + state[0, 2*24 + next_station] + \
+
+                    print(state[0, 24 + next_station], state[0, 2*24 + next_station], \
+                        state[0, 3*24 + next_station] , state[0, 4*24 + next_station])
+
+                    score = -state[0, 24 + next_station] + 0*state[0, 2*24 + next_station] + \
                             state[0, 3*24 + next_station] + 0*state[0, 4*24 + next_station]
-                    # print(next_station, score)
+                    print(next_station, score)
                     if score > best_score:
                         best_score = score
                         best_action = next_station
-
+        print("Bus %d goes to %d \n" % (self.bus_id,best_action))
         return best_action, best_score
 
     def compute_next_station(self):
         # generate state
         state = self.generate_state()
+        self.state = state
 
         # compute next
         action, score = self.compute_next(state)

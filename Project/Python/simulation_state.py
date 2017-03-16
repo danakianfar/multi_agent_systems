@@ -88,6 +88,7 @@ def compute_state_vector(bus):
     capacity_contribution_vector = get_capacity_contribution_vector(bus, bus.controller)
     # current station -> all other stations cumulative waiting time
     relative_importance_vector = get_station_relative_importance_projection_vector(bus, bus.controller)
+
     # total waiting time in all the other stations
     waiting_time = get_waiting_time_vector(bus.controller)
     # station similarity vector

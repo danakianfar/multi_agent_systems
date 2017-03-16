@@ -75,7 +75,7 @@ class StateLogger(Logger):
                 if bus_id in controller.buses:
                     bus = controller.buses[bus_id]
                     if bus.current_stop:
-                        return bus.generate_state()
+                        return bus.state
                     else:
                         return False
                 else:
