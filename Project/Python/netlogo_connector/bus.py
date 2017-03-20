@@ -1,4 +1,4 @@
-# from controller import *
+from dummy_controller import *
 
 class Bus:
 

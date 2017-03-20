@@ -1,6 +1,7 @@
 from functools import partial
 import numpy as np
 import pandas as pd
+from main_bus import MainBus
 from action import *
 from bus_stop import *
 from passenger import *
@@ -40,7 +41,7 @@ class Controller:
 
     _COST_K = 1e-1
 
-    def __init__(self, bus_class, m_prob_dist=None, adj_matrix=None):
+    def __init__(self, bus_class=MainBus, m_prob_dist=None, adj_matrix=None):
         self.ticks = 0
         self.buses = {}
         self.last_bus_id = 23

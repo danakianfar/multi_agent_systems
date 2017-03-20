@@ -1,0 +1,225 @@
+extensions [shell string url]
+
+buses-own [
+  ; Static, read-only variables. These values never change. You can read them, but you cannot change them.
+  bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
+  bus_type        ; The type of a given agent (bus). 1 means "small", 2 means "medium" and 3 means "large".
+    
+  ; Dynamic, read-only variables. These values may change over time. You can read them, but you cannot change them.
+  inbox           ; List containing all the incoming messages (a given message is a list like this [tick sender message]).
+  bus_passengers  ; List containing all the passengers that the agent (bus) is currently carrying (represented as a list like this [passenger_id bus_stop]).
+  previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
+  current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
+  next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
+
+  ; New local variables for students.
+  ; You can create any new local variable you want. Just declare them here.
+  last_stop
+  busses_number
+  capacity
+  
+  ; Python API parameters
+  ACT_TYPE_TRAVELTO 
+  ACT_TYPE_MESSAGE 
+  ACT_TYPE_PICKUP 
+  ACT_TYPE_DROPOFF 
+  ACT_TYPE_ADDBUS
+  REX_SPLIT_CMD
+  REX_SPLIT_ACTION
+  REX_SPLIT_MESSAGE
+]
+ 
+globals [graph]
+
+to init-buses
+  ; Initialize your agents here.
+  set next_stop -1
+  set busses_number 1
+
+  if bus_type = 1
+  [
+    set capacity bus_type1_capacity
+  ]
+  if bus_type = 2
+  [
+    set capacity bus_type2_capacity
+  ]
+  if bus_type = 3
+  [
+    set capacity bus_type3_capacity
+  ]
+  
+  ; This list contains the topology of the entire network of bus stops, which is known to all agents. You can use this, for instance, to calculate the shortest path between two bus stops.
+  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+  
+  ; todo: remove, just for debugging
+  set inbox lput (list ticks 24 "{hello:hello}") inbox
+  
+  set ACT_TYPE_TRAVELTO  "TRAVEL_TO"
+  set ACT_TYPE_MESSAGE "MESSAGE"
+  set ACT_TYPE_PICKUP "PICK_UP"
+  set ACT_TYPE_DROPOFF "DROP_OFF"
+  set ACT_TYPE_ADDBUS "ADD_BUS"
+  set REX_SPLIT_CMD "&&"
+  set REX_SPLIT_ACTION ":=:"
+  set REX_SPLIT_MESSAGE "==="
+end
+
+to-report get-full-passenger-info [passenger_id]
+  let p item passenger_id passengers
+  report (list item 0 p item 1 p item 3 p) ; id, check in time, destination
+end
+
+to-report get-full-passengers [ls_passengers]
+  let results []
+  foreach ls_passengers [
+    let pass_id item 0 ?
+    set results lput get-full-passenger-info pass_id results
+  ]
+  report results
+end
+
+to-report get-full-passengers-at-stop [stop_id]
+  let pass_infos []
+  let pass_station get-passengers-at-stop stop_id
+  report get-full-passengers pass_station
+end
+
+to-report get-stops-passengers-information
+  
+  let stop_ids int-linspace 0 23 24
+  let message []
+  
+  foreach stop_ids [
+    let s_id ?
+    set message lput (list s_id get-full-passengers-at-stop s_id ) message
+  ]
+  
+  report message
+end
+
+to-report call-python-agents
+  
+  let str_inbox string:from-list inbox
+  let str_passengers string:from-list bus_passengers
+  let str_stops_passengers string:from-list get-stops-passengers-information
+  
+  let message (list (list "ticks" (word ticks )) (list "bus_id" (word bus_id)) (list "bus_type" (word bus_type)) (list "inbox" str_inbox) (list "bus_passengers" str_passengers) (list "stops" str_stops_passengers) (list "previous_stop" (word previous_stop)) (list "current_stop" ( word current_stop)) (list "next_stop" (word next_stop)))
+  
+  let status url:post "http://127.0.0.1:5000/tick" message
+  
+  report status
+end
+
+;; borrowed and modified: https://subversion.american.edu/aisaac/notes/netlogo-intro.xhtml
+to-report int-linspace [#xmin #xmax #npts]
+  let _len (#xmax - #xmin)
+  report n-values #npts [#xmin + round(_len * ( ? / (#npts - 1)))]
+end
+
+
+to parse-action [action]
+  
+  let commands string:rex-split action REX_SPLIT_CMD
+  show commands
+  foreach commands [
+   let command string:rex-split ? REX_SPLIT_ACTION
+   show command 
+   
+   let cmd_type item 0 command
+   let cmd_content item 1 command
+  
+   
+   if cmd_type = ACT_TYPE_TRAVELTO [ ;; protocol: ("TRAVEL_TO",station_id) 
+     set cmd_content read-from-string cmd_content ; convert to int
+     show cmd_type 
+     show cmd_content
+     set next_stop cmd_content
+   ] 
+   
+   if cmd_type = ACT_TYPE_MESSAGE [ ;; protocol: ("MESSAGE", recipient_id, message_content)
+     let message_info string:rex-split cmd_content REX_SPLIT_MESSAGE
+     show cmd_type 
+     show cmd_content
+     show message_info
+     send-message (read-from-string item 0 message_info) (item 1 message_info)
+   ] 
+   
+   if cmd_type = ACT_TYPE_PICKUP [ ;; protocol: ("PICKUP" , passenger_id)
+     set cmd_content read-from-string cmd_content ; convert to int
+     show cmd_type 
+     show cmd_content
+     pick-up-passenger cmd_content
+   ] 
+   
+   if cmd_type = ACT_TYPE_DROPOFF [ ;; protocol: ("DROPOFF" , passenger_id)
+     set cmd_content read-from-string cmd_content ; convert to int
+     show cmd_type 
+     show cmd_content
+     drop-off-passenger cmd_content
+   ] 
+   
+   if cmd_type = ACT_TYPE_ADDBUS [  ;; protocol: ("ADDBUS" , passenger_id)
+     set cmd_content read-from-string cmd_content ; convert to int
+     show cmd_type 
+     show cmd_content
+     add-bus cmd_content
+   ] 
+   
+  ]
+end
+
+
+to execute-actions
+  
+  ; Add decision making strategies for your agents here.
+  ; You are allowed to use the global variable 'ticks'.
+  if current_stop != -1 
+  [
+    
+    ; Call Python
+    let action call-python-agents 
+    
+;    delegate call to python
+    parse-action action
+    
+    
+;    let passengers_count length (get-passengers-at-stop current_stop)
+;    if (passengers_count > 0) 
+;    [
+;      foreach get-passengers-at-stop current_stop
+;      [
+;        if length bus_passengers < capacity
+;        [
+;          pick-up-passenger item 0 ?
+;        ]
+;      ]
+;    ]
+;    if length bus_passengers > 0 
+;    [
+;      foreach bus_passengers 
+;      [
+;        if item 1 ? = current_stop
+;        [
+;          drop-off-passenger item 0 ?
+;        ]
+;      ]
+;    ]
+  ]
+
+;  if bus_id = 24
+;  [
+;    if busses_number < 10
+;    [
+;      add-bus 1
+;      set busses_number busses_number + 1
+;    ]
+;  ]
+;  if next_stop = -1
+;  [
+;    set next_stop one-of item current_stop graph
+;  ]
+;  
+  travel-to next_stop
+end
+
