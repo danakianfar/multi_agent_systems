@@ -67,7 +67,7 @@ class TotalCostLogger(Logger):
     def __init__(self, save_every=1):
         Logger.__init__(self, 'Total Cost Logger', lambda c: c.get_total_cost(), save_every=save_every)
 
-class SuperiorStateLogger(Logger):
+class StateLogger(Logger):
     def __init__(self, bus_id=None, save_every=1):
 
         if bus_id:
@@ -75,10 +75,10 @@ class SuperiorStateLogger(Logger):
                 if bus_id in controller.buses:
                     bus = controller.buses[bus_id]
                     if bus.current_stop:
-                        return bus.generate_state()
+                        return bus.state
                     else:
                         return False
                 else:
                     return False
 
-            Logger.__init__(self, 'Superior Bus {} State Logger'.format(bus_id), log_one_state, save_every=save_every)
+            Logger.__init__(self, 'Bus {} State Logger'.format(bus_id), log_one_state, save_every=save_every)

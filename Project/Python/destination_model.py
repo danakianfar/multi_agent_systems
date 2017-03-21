@@ -38,7 +38,7 @@ class DestinationModel:
 
     def get_network_structure(self):
         return Sequential([
-            Dense(200, input_dim=625 + 24),
+            Dense(200, input_dim=120 + 24),
             Activation('relu'),
             Dense(100),
             Activation('relu'),
