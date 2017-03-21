@@ -729,11 +729,10 @@ to drop-off-passenger [p_id]
         ask myself [
           set bus_passengers remove-item pos bus_passengers
         ]
-        ifelse item 3 passenger = bs_id
+        ifelse item 3 passenger = bs_id ; if arrived at destination
         [
           set passenger replace-item 8 passenger -1
           set passenger replace-item 6 passenger true
-
         ]
         [
           set passengers_waiting lput p passengers_waiting

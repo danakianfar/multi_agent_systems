@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Extension-Name: url
+Class-Manager: org.nlogo.extensions.url.URLExtension
+NetLogo-Extension-API-Version: 5.0
