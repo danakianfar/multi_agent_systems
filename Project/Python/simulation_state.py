@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import expit
 
 def get_current_bus_position_vector(bus):
     N = len(bus.controller.bus_stop_names)
@@ -25,72 +26,63 @@ def get_leftovers(bus, controller):
     passengers_waiting = controller.passengers_matrix.sum(axis=1)
     return passengers_waiting - expected_capacity
 
-def get_capacity_contribution_vector(bus, controller):
-    capacity_contribution = bus.capacity - get_leftovers(bus, controller)
-    # laplacian smoothing
-    capacity_contribution -= capacity_contribution.min() - 1
-    return capacity_contribution / capacity_contribution.sum()
+def expected_capacity_contribution(bus, controller):
+    fill_percentage = get_leftovers(bus, controller)/bus.capacity
+    connections = np.zeros(len(controller.bus_stop_names))
+    connections[controller.connections[bus.current_stop.stop_id]] = 1
+    scores = (expit(fill_percentage * connections)-0.5)*2.0
+    return scores
 
 
 def get_station_relative_importance_projection_vector(bus, controller):
-    adjacency_projection = np.zeros(len(controller.bus_stop_names))
+    stop_id = bus.current_stop.stop_id
+    #
+    # for adj_id in controller.connections[stop_id]:
+    #     for passenger_id in controller.bus_stops[stop_id].passengers_waiting:
+    #         scores[adj_id] += controller.passengers[passenger_id].get_attractivity(adj_id)
+    urgency = controller.waiting_time_matrix[stop_id]
+    urgency += controller.passengers_matrix[stop_id] * controller.average_minumum_delivery_time
 
-    bus_x = bus.current_stop.x
-    bus_y = bus.current_stop.y
+    attractivity = controller.attractivity[stop_id]
+    scores = urgency.dot(attractivity)
+    s = scores.sum()
+    if s > 0:
+        scores /= s
 
-    displacement_x = np.array([stop.x - bus_x for stop in controller.bus_stops.values()])
-    displacement_y = np.array([stop.y - bus_y for stop in controller.bus_stops.values()])
+    return scores
 
-    displacement = np.vstack((displacement_x, displacement_y)).astype(np.float32)
-    displacement_norm = np.linalg.norm(displacement, axis=0)
-    displacement[:, displacement_norm > 0] = displacement[:, displacement_norm > 0] / displacement_norm[displacement_norm > 0]
-
-    waiting_time = controller.waiting_time_matrix[bus.current_stop.stop_id, :]
-
-    for connection in controller.connections[bus.current_stop.stop_id]:
-        stop_x = controller.bus_stops[connection].x
-        stop_y = controller.bus_stops[connection].y
-
-        bus_displacement = np.array([stop_x - bus_x, stop_y - bus_y]).astype(np.float32)
-        bus_displacement = bus_displacement / np.linalg.norm(bus_displacement)
-        projection = np.dot(bus_displacement.T, displacement)
-        projection[projection < 0] = 0
-        adjacency_projection[connection] = np.sum(waiting_time * projection)
-
-        if adjacency_projection.sum() > 0:
-            adjacency_projection = adjacency_projection / adjacency_projection.sum()
-    return adjacency_projection
-
-def get_waiting_time_vector(controller):
-    return controller.waiting_time_matrix.sum(axis=1) / 1000000.
+def get_waiting_time_distribution_vector(bus, controller):
+    stop_id = bus.current_stop.stop_id
+    waiting_time = controller.waiting_time_matrix.sum(axis=1)
+    attractivity = controller.attractivity[stop_id]
+    scores = waiting_time.dot(attractivity)
+    s = scores.sum()
+    if s > 0:
+        scores /= s
+    return scores
 
 def get_similarity_vector(bus, controller):
-    # laplacian smoothing
-    station_population = controller.waiting_time_matrix[bus.current_stop.stop_id,:]
-
-    similarity = np.dot(controller.waiting_time_matrix.T, station_population.T)
-
-    connections = controller.connections[bus.current_stop.stop_id]
-    connection_vector = np.zeros(len(controller.bus_stop_names))
-    connection_vector[connections] = 1.0
-
-    similarity *= connection_vector
-
-    similarity -= similarity.min() - 1
-    similarity /= similarity.sum()
-    return similarity
+    similarity = controller.passengers_matrix[bus.current_stop.stop_id].dot(controller.similarity_matrix)
+    connections = np.zeros(len(controller.bus_stop_names))
+    connections[controller.connections[bus.current_stop.stop_id]] = 1
+    similarity = similarity
+    scores = similarity.dot(controller.passengers_matrix.T)
+    scores = scores * connections
+    s = scores.sum()
+    if s > 0:
+        scores /= s
+    return scores
 
 def compute_state_vector(bus):
 
     # bus position (one-hot)
     position_vector = get_current_bus_position_vector(bus)
     # capacity contribution vector
-    capacity_contribution_vector = get_capacity_contribution_vector(bus, bus.controller)
+    capacity_contribution_vector = expected_capacity_contribution(bus, bus.controller)
     # current station -> all other stations cumulative waiting time
     relative_importance_vector = get_station_relative_importance_projection_vector(bus, bus.controller)
-
     # total waiting time in all the other stations
-    waiting_time = get_waiting_time_vector(bus.controller)
+    waiting_time = get_waiting_time_distribution_vector(bus, bus.controller)
     # station similarity vector
     similarity_vector = get_similarity_vector(bus, bus.controller)
 

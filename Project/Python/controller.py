@@ -7,6 +7,7 @@ from bus_stop import *
 from passenger import *
 from logger import *
 from destination_model import *
+from scipy import sparse
 
 
 class Controller:
@@ -25,6 +26,10 @@ class Controller:
         self.bus_stops = {}
         self.passengers = {}
 
+
+        #TODO tune
+        self.tollerance = 0.3
+
         self.init_map()
 
         self.loggers = loggers
@@ -34,14 +39,7 @@ class Controller:
 
         self.replay_memory = []
 
-        if len(bus_genomes) == 0:
-            self.bus_genomes = [[0,0,0,0]]
-            self.genome_distro = [1]
-        else:
-            self.bus_genomes = bus_genomes
-            self.genome_distro = genome_distro
-
-        self.reset()
+        self.reset(bus_genomes, genome_distro)
 
     def reset(self, bus_genomes = [], genome_distro= []):
         self.ticks = 0
@@ -54,8 +52,9 @@ class Controller:
         self.total_travel_time = 0
         self.communication_cost = 0
 
+        # definition of features mixing coefficients
         if len(bus_genomes) == 0:
-            self.bus_genomes = [[0,0,0,0]]
+            self.bus_genomes = [[1, 0, 0, 0, 0]]
             self.genome_distro = [1]
         else:
             self.bus_genomes = bus_genomes
@@ -87,7 +86,7 @@ class Controller:
         init_bus_genome = self.bus_genomes[init_bus_genome_idx]
 
         # Create first bus using the sampled genome
-        self.add_bus(init_bus_genome[0], genome = init_bus_genome)
+        self.add_bus(1, genome = init_bus_genome)
         self.init_daily_ridership(add_arrivals_noise)
 
     def init_daily_ridership(self, add_arrivals_noise=False):
@@ -99,8 +98,9 @@ class Controller:
             def passengers_arrival(passengers):
 
                 for passenger in passengers:
-                    passenger.source.add_waiting_passenger(passenger)
-                    self.passengers_matrix[passenger.source.stop_id, passenger.destination.stop_id] += 1
+                    if passenger.source.stop_id != passenger.destination.stop_id:
+                        passenger.source.add_waiting_passenger(passenger)
+                        self.passengers_matrix[passenger.source.stop_id, passenger.destination.stop_id] += 1
                     self.actual_passenger_count += 1
 
             tick = row['Ticks']  # When the passengers arrive (every 15 ticks)
@@ -148,10 +148,40 @@ class Controller:
             for dest in self.connections[i]:
                 self.adj_matrix[orig, dest] = np.sqrt((xs[orig] - xs[dest]) ** 2 + (ys[orig] - ys[dest]) ** 2)
 
+        not_connected = self.adj_matrix == -np.inf
+        adj_copy = self.adj_matrix.copy()
+        adj_copy[not_connected] = 0
+        self.average_travel_time = adj_copy[adj_copy>0].mean()
+        adj_copy = sparse.bsr_matrix(adj_copy)
+
+        self.min_dist = sparse.csgraph.dijkstra(adj_copy)
+        self.average_minumum_delivery_time = self.min_dist[self.min_dist>0].mean()
+
         self.init_probability_distribution()
+        self.init_attractivity_tensor()
+        self.init_similarity_matrix()
 
     def save_destination_model(self, file_name):
         self.destination_model.save(file_name)
+
+    def init_attractivity_tensor(self):
+        n = len(self.bus_stop_names)
+        self.attractivity = np.zeros((n, n, n))
+        for source_id in self.bus_stops.keys():
+            for destination_id in self.bus_stops.keys():
+                if source_id != destination_id:
+                    for next_id in self.connections[source_id]:
+                        path_len = self.min_dist[source_id][next_id] + self.min_dist[next_id][destination_id]
+                        min_len = self.min_dist[source_id][destination_id]
+                        self.attractivity[source_id][destination_id][next_id] = -path_len/min_len
+        self.attractivity[self.attractivity != 0] += 1 + self.tollerance
+        self.attractivity[self.attractivity < 0] = 0
+        self.attractivity /= self.tollerance
+
+    def init_similarity_matrix(self):
+        self.similarity_matrix = 1.0 - self.min_dist/self.average_minumum_delivery_time
+        self.similarity_matrix[self.similarity_matrix < 0] = 0
+
 
     def init_probability_distribution(self):
         print('Initializing Prob Dist')
@@ -258,11 +288,12 @@ class Controller:
 
         self.travelling_passengers -= 1
 
+        passenger = self.passengers[passenger_id]
+
         if self.passengers[passenger_id].destination == bus.current_stop:
-            self.deliver_passenger(self.passengers[passenger_id])
-            bus.cum_reward += 1 #self.passengers[passenger_id].get_waiting_time()
+            self.deliver_passenger(passenger)
+            bus.cum_reward += 1
         else:
-            passenger = self.passengers[passenger_id]
             # load to station
             self.bus_stops[bus.current_stop.stop_id].add_waiting_passenger(self.passengers[passenger_id])
             self.passengers_matrix[bus.current_stop.stop_id, passenger.destination.stop_id] += 1
@@ -317,3 +348,8 @@ class Controller:
                     self.logged_data[logger.name].append(data)
 
         self.ticks += 1
+
+
+
+
+

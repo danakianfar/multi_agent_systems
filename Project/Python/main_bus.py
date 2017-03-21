@@ -42,7 +42,6 @@ class MainBus(Bus):
             self.add_bus(int(new_bus_genome[0]), genome = new_bus_genome)
 
             self.created_buses_counter += 1
-            #print('Add bus ', self.created_buses_counter + 1, 'Genome ', new_bus_genome)
             self.position_beliefs.internal_table[self.bus_id + self.created_buses_counter] = (self.controller.ticks, 3)
 
     def make_decisions(self):
@@ -58,8 +57,6 @@ class MainBus(Bus):
 
             if message['type'] == MainBus._MSG_UPDATE:
                 self.position_beliefs.update_beliefs(sender, message['content'])
-            else:
-                print(message)
 
         self.inbox.clear()
 
@@ -123,18 +120,11 @@ class MainBus(Bus):
             #         best_score = score
             #         best_action = next_station
 
-            flag = False
-
             scores = []
 
-            #print('Yet another decision of bus %d' %self.bus_id)
             for next_station in possible_actions:
 
-                    #print(state[0, 24 + next_station], state[0, 2*24 + next_station], \
-                    #    state[0, 3*24 + next_station] , state[0, 4*24 + next_station])
-
-
-                scores.append(- self.genome[0] * state[0, 24 + next_station] + \
+                scores.append(self.genome[0] * state[0, 24 + next_station] + \
                             self.genome[1] * state[0, 2*24 + next_station] + \
                             self.genome[2] * state[0, 3*24 + next_station] + \
                             self.genome[3] * state[0, 4*24 + next_station])
@@ -146,8 +136,7 @@ class MainBus(Bus):
             best_score = soft_scores[next_idx]
             best_action = possible_actions[next_idx]
 
-        #print("Bus %d goes to %d \n" % (self.bus_id,best_action))
-        return best_action, best_score
+    return best_action, best_score
 
     def compute_next_station(self):
         # generate state
@@ -166,31 +155,19 @@ class MainBus(Bus):
 
     def select_passengers(self):
         # Create vector from O to the passenger destiantion weighted by its waiting time
-
+        next_stop_id = self.next_stop.stop_id
         passengers = [self.controller.passengers[p] for p in self.current_stop.passengers_waiting]
+        scores = np.array([p.get_attractivity(next_stop_id) for p in passengers])
         selected_passengers = []
 
         if len(passengers) != 0:
-
-            V = np.array(
-                [[p.get_waiting_time() * (p.destination.x - self.current_stop.x),
-                  p.get_waiting_time() * (p.destination.y - self.current_stop.y)]
-                 for p in passengers])
-
-            # Create vector from O to D
-            w = np.array([self.next_stop.x - self.current_stop.x, self.next_stop.y - self.current_stop.y]).T
-
-            # Multiply V with w (equivalent to taking dot product between each v and w)
-            x = np.dot(V, w)
-
-            # Order the passengers by descending dot product
-            ordering = np.argsort(-x)
-
+            ordering = np.argsort(-scores)
             # Select the best passengers by their dot product score (if they go in the same direction of the bus) until bus capacity
 
-            for i in range(len(ordering)):
-                if x[ordering[i]] > 0:
-                    selected_passengers.append(passengers[ordering[i]].passenger_id)
+            for i in ordering:
+                if scores[i] > 0:
+                    passenger = passengers[i]
+                    selected_passengers.append(passenger.passenger_id)
                 # If the bus is full, break
                 if len(selected_passengers) == self.capacity:
                     break
