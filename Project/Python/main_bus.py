@@ -26,8 +26,8 @@ class MainBus(Bus):
 
             self.make_decisions()
 
-        if self.controller.ticks % 5 == 0 and not self.current_stop and self.bus_id == 24 and self.controller.ticks <= 50 and self.created_buses_counter < 1:
-            self.add_bus(1)
+        if self.controller.ticks % 5 == 0 and not self.current_stop and self.bus_id == 24 and self.created_buses_counter < 30:
+            self.add_bus(2)
             self.created_buses_counter += 1
             self.position_beliefs.internal_table[self.bus_id + self.created_buses_counter] = (self.controller.ticks, 3)
 
@@ -45,8 +45,6 @@ class MainBus(Bus):
 
             if message['type'] == MainBus._MSG_UPDATE:
                 self.position_beliefs.update_beliefs(sender, message['content'])
-            else:
-                print(message)
 
         self.inbox.clear()
 
@@ -105,19 +103,15 @@ class MainBus(Bus):
             #         best_score = score
             #         best_action = next_station
 
-            print('Yet another decision of bus %d' %self.bus_id)
+            #print('Yet another decision of bus %d' %self.bus_id)
             for next_station in possible_actions:
-
-                    print(state[0, 24 + next_station], state[0, 2*24 + next_station], \
-                        state[0, 3*24 + next_station] , state[0, 4*24 + next_station])
-
-                    score = -state[0, 24 + next_station] + 0*state[0, 2*24 + next_station] + \
+                    score = state[0, 24 + next_station] + state[0, 2*24 + next_station] + \
                             state[0, 3*24 + next_station] + 0*state[0, 4*24 + next_station]
-                    print(next_station, score)
+                    #print(next_station, score)
                     if score > best_score:
                         best_score = score
                         best_action = next_station
-        print("Bus %d goes to %d \n" % (self.bus_id,best_action))
+        #print("Bus %d goes to %d \n" % (self.bus_id,best_action))
         return best_action, best_score
 
     def compute_next_station(self):
@@ -139,34 +133,22 @@ class MainBus(Bus):
 
     def select_passengers(self):
         # Create vector from O to the passenger destiantion weighted by its waiting time
-
+        next_stop_id = self.next_stop.stop_id
         passengers = [self.controller.passengers[p] for p in self.current_stop.passengers_waiting]
+        scores = np.array([p.get_attractivity(next_stop_id) for p in passengers])
         selected_passengers = []
 
         if len(passengers) != 0:
-
-            V = np.array(
-                [[p.get_waiting_time() * (p.destination.x - self.current_stop.x),
-                  p.get_waiting_time() * (p.destination.y - self.current_stop.y)]
-                 for p in passengers])
-
-            # Create vector from O to D
-            w = np.array([self.next_stop.x - self.current_stop.x, self.next_stop.y - self.current_stop.y]).T
-
-            # Multiply V with w (equivalent to taking dot product between each v and w)
-            x = np.dot(V, w)
-
-            # Order the passengers by descending dot product
-            ordering = np.argsort(-x)
-
+            ordering = np.argsort(-scores)
             # Select the best passengers by their dot product score (if they go in the same direction of the bus) until bus capacity
 
-            for i in range(len(ordering)):
-                if x[i] > 0:
-                    selected_passengers.append(passengers[ordering[i]].passenger_id)
+            for i in ordering:
+                if scores[i] > 0:
+                    passenger = passengers[i]
+                    selected_passengers.append(passenger.passenger_id)
                 # If the bus is full, break
                 if len(selected_passengers) == self.capacity:
-                    break
+                    pass
 
         return selected_passengers
 
