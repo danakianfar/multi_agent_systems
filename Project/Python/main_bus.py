@@ -6,8 +6,8 @@ import numpy as np
 
 class MainBus(Bus):
     _MSG_UPDATE = 'update_table'
-    _SPREAD_TIME = 0
-    _EXPLORATION_PROBABILITY = 0.0  # TODO reset to 0.05
+    _SPREAD_TIME = 60
+    _EXPLORATION_PROBABILITY = 0.1  # TODO reset to 0.05
     _INITIAL_BUSES = 30
 
 

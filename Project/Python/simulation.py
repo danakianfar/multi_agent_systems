@@ -64,7 +64,7 @@ class Simulation:
 
     def reset(self, bus_genomes = [], genome_distro= [], add_arrivals_noise=False):
         self.controller.reset(bus_genomes, genome_distro)
-        self.controller.setup(add_arrivals_noise)
+        self.controller.setup(add_arrivals_noise=add_arrivals_noise)
 
     def init_plot(self):
         plot_figure = plt.figure(figsize=(10,8))

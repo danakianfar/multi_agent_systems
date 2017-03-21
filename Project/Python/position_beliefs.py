@@ -1,4 +1,5 @@
 from bus import *
+import numpy as np
 
 class PositionBeliefs:
 
