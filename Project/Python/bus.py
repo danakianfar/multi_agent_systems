@@ -53,7 +53,7 @@ class Bus:
         else:
             return False
 
-    def add_bus(self, vehicle_type, genome):
+    def add_bus(self, vehicle_type, genome=[]):
         self.controller.add_bus(vehicle_type, genome)
 
     def travel_to(self, bus_stop):

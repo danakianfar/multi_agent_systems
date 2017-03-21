@@ -5,9 +5,9 @@ from controller import *
 import matplotlib.cm as cm
 
 class Simulation:
-    def __init__(self, bus_class=Bus,  bus_genomes = [], genome_distro = [], loggers=[]):
+    def __init__(self, bus_class=Bus, loggers=[]):
 
-        self.controller = Controller(bus_class, bus_genomes = [], genome_distro = [], loggers=loggers)
+        self.controller = Controller(bus_class, loggers=loggers)
         self.controller.setup()
 
 
@@ -74,7 +74,7 @@ class Simulation:
         stop_x = [stop.x for stop in self.controller.bus_stops.values()]
         stop_y = [stop.y for stop in self.controller.bus_stops.values()]
 
-        plt.ylim(-1,31)
+        plt.ylim(-1, 31)
         plt.plot(stop_x, stop_y, 'o')
 
         station_plot = {}

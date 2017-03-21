@@ -108,6 +108,9 @@ ENV/
 # Spyder project settings
 .spyderproject
 
+#networks
+*.net
+
 # Rope project settings
 .ropeproject
 Contact GitHub API Training Shop Blog About

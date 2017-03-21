@@ -3,21 +3,19 @@ from position_beliefs import *
 from simulation_state import compute_state_vector
 import numpy as np
 
+
 class MainBus(Bus):
     _MSG_UPDATE = 'update_table'
     _SPREAD_TIME = 0
-    _EXPLORATION_PROBABILITY = 0.0 #TODO reset to 0.05
+    _EXPLORATION_PROBABILITY = 0.0  # TODO reset to 0.05
     _INITIAL_BUSES = 30
 
-    def __init__(self, bus_id, bus_type, init_stop, controller, genome):
-        Bus.__init__(self, bus_id, bus_type, init_stop, controller)
-        self.genome = genome
+
 
     def init_bus(self):
         self.arrival_time = 0
         self.position_beliefs = PositionBeliefs(self)
-        self.created_buses_counter = 0 # used only in bus 24
-        self.destination_model = self.controller.destination_model
+        self.created_buses_counter = 0  # used only in bus 24
         self.previous_cost = 0
         self.previous_state = None
         self.previous_action = None
@@ -25,24 +23,19 @@ class MainBus(Bus):
         self.state = None
         self.cum_reward = 0
 
+    def bus_creation(self):
+        # TODO choose creation policy
+        self.add_bus(2)
+
     def execute_action(self):
-        if self.current_stop: # call only when at a station
+        if self.current_stop:  # call only when at a station
             if self.controller.ticks >= MainBus._SPREAD_TIME and self.exploration_parameter == 1:
                 self.exploration_parameter = MainBus._EXPLORATION_PROBABILITY
 
             self.make_decisions()
 
-        if self.controller.ticks % 2 == 0 and not self.current_stop and self.bus_id == 24 and self.created_buses_counter < MainBus._INITIAL_BUSES - 1:# and self.created_buses_counter < 1:
-
-            new_bus_genome_idx = np.random.choice(range(len(self.controller.bus_genomes)), p = self.controller.genome_distro)
-            #print(self.controller.genome_distro, new_bus_genome_idx)
-            new_bus_genome = self.controller.bus_genomes[new_bus_genome_idx]
-
-            # Create bus using the sampled genome
-            self.add_bus(int(new_bus_genome[0]), genome = new_bus_genome)
-
-            self.created_buses_counter += 1
-            self.position_beliefs.internal_table[self.bus_id + self.created_buses_counter] = (self.controller.ticks, 3)
+        if self.controller.ticks % 2 == 0 and not self.current_stop and self.bus_id == 24 and self.created_buses_counter < MainBus._INITIAL_BUSES - 1:  # and self.created_buses_counter < 1:
+            self.bus_creation()
 
     def make_decisions(self):
 
@@ -79,14 +72,13 @@ class MainBus(Bus):
 
         # Save to replay memory ( S[t-1], A[t-1], R[t-1], S[t] )
         if self.previous_action:
-            action_vector = np.eye(1 , len(self.controller.bus_stops), self.previous_action)
+            action_vector = np.eye(1, len(self.controller.bus_stops), self.previous_action)
             self.controller.store_replay((self.previous_state,
-                action_vector, reward, state))
+                                          action_vector, reward, state))
 
         # Save current state & action
         self.previous_action = action
         self.previous_state = state
-
 
     def generate_state(self):
         state = compute_state_vector(self)
@@ -103,40 +95,30 @@ class MainBus(Bus):
         best_action = None
 
         # Evaluate every possible adjacent station to visit (including self)
-        possible_actions = self.connections[self.current_stop.stop_id] #+ [self.current_stop.stop_id]
+        possible_actions = self.connections[self.current_stop.stop_id]  # + [self.current_stop.stop_id]
 
         # Exploration policy
         if np.random.rand() < self.exploration_parameter:
             best_action = np.random.choice(possible_actions)
             best_score = 100
 
-        else: # Exploitation policy
-            # for next_station in possible_actions:
-            #     action = np.eye(1, len(self.controller.bus_stops), next_station) # one-hot encoding of next station
-            #
-            #     score = self.destination_model.predict(state, action)[0,0]
-            #     # print(next_station, score)
-            #     if score > best_score:
-            #         best_score = score
-            #         best_action = next_station
-
+        else:
             scores = []
 
             for next_station in possible_actions:
-
-                scores.append(self.genome[0] * state[0, 24 + next_station] + \
-                            self.genome[1] * state[0, 2*24 + next_station] + \
-                            self.genome[2] * state[0, 3*24 + next_station] + \
-                            self.genome[3] * state[0, 4*24 + next_station])
+                scores.append( state[0, 24 + next_station] + \
+                               state[0, 2 * 24 + next_station] + \
+                               state[0, 3 * 24 + next_station] + \
+                               state[0, 4 * 24 + next_station])
 
             soft_scores = self.softmax(scores)
 
-            next_idx = np.random.choice(range(len(scores)), p = soft_scores)
+            next_idx = np.random.choice(range(len(scores)), p=soft_scores)
 
             best_score = soft_scores[next_idx]
             best_action = possible_actions[next_idx]
 
-    return best_action, best_score
+        return best_action, best_score
 
     def compute_next_station(self):
         # generate state
