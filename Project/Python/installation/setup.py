@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # pip install   
     dependencies = ['numpy', 'pandas', \
                     'tensorflow', 'keras', 'flask', \
-                    'matplotlib', 'scipy']
+                    'matplotlib', 'scipy', 'pyparsing']
 
     for pkg in dependencies:
         install(pkg)

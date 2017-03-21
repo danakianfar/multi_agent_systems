@@ -65,6 +65,10 @@ to init-buses
   set REX_SPLIT_MESSAGE "==="
 end
 
+
+;; Python API start
+
+
 to-report get-full-passenger-info [passenger_id]
   let p item passenger_id passengers
   report (list item 0 p item 1 p item 3 p) ; id, check in time, destination
@@ -159,7 +163,7 @@ to parse-action [action]
      drop-off-passenger cmd_content
    ] 
    
-   if cmd_type = ACT_TYPE_ADDBUS [  ;; protocol: ("ADDBUS" , passenger_id)
+   if cmd_type = ACT_TYPE_ADDBUS [  ;; protocol: ("ADDBUS" , bus types)
      set cmd_content read-from-string cmd_content ; convert to int
      show cmd_type 
      show cmd_content
@@ -169,6 +173,8 @@ to parse-action [action]
   ]
 end
 
+
+;; Python Api end
 
 to execute-actions
   

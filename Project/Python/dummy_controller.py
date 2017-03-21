@@ -125,8 +125,8 @@ class Controller:
             vehicle_type))
 
     def travel_to(self, bus, bus_stop_id):
-        assert bus.current_stop
-        assert bus_stop_id in self.connections[bus.current_stop.stop_id]
+        # assert bus.current_stop
+        # assert bus_stop_id in self.connections[bus.current_stop.stop_id]
         
         self.commands.append(NetLogoAction(NetLogoAction.ACT_TYPE_TRAVELTO, 
             bus_stop_id))
@@ -135,13 +135,12 @@ class Controller:
         return self.adj_matrix[from_station,to_station]
         
     def pick_up_passenger(self, bus, passenger_id):
-        assert bus.current_stop == self.passengers[passenger_id].current_stop 
-
+        # assert bus.current_stop == self.passengers[passenger_id].current_stop 
         self.commands.append(NetLogoAction(NetLogoAction.ACT_TYPE_PICKUP, 
             passenger_id))
 
     def drop_off_passenger(self, bus, passenger_id):
-        assert passenger_id in [p[0] for p in bus.bus_passengers]
+        # assert passenger_id in [p[0] for p in bus.bus_passengers]
 
         self.commands.append(NetLogoAction(NetLogoAction.ACT_TYPE_DROPOFF,
             passenger_id))
