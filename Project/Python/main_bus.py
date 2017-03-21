@@ -1,12 +1,17 @@
 from bus import Bus
 from position_beliefs import *
 from simulation_state import compute_state_vector
-
+import numpy as np
 
 class MainBus(Bus):
     _MSG_UPDATE = 'update_table'
     _SPREAD_TIME = 0
     _EXPLORATION_PROBABILITY = 0.0 #TODO reset to 0.05
+    _INITIAL_BUSES = 30
+
+    def __init__(self, bus_id, bus_type, init_stop, controller, genome):
+        Bus.__init__(self, bus_id, bus_type, init_stop, controller)
+        self.genome = genome
 
     def init_bus(self):
         self.arrival_time = 0
@@ -18,6 +23,7 @@ class MainBus(Bus):
         self.previous_action = None
         self.exploration_parameter = 1
         self.state = None
+        self.cum_reward = 0
 
     def execute_action(self):
         if self.current_stop: # call only when at a station
@@ -26,11 +32,18 @@ class MainBus(Bus):
 
             self.make_decisions()
 
-        if self.controller.ticks % 5 == 0 and not self.current_stop and self.bus_id == 24 and self.controller.ticks <= 50 and self.created_buses_counter < 1:
-            self.add_bus(1)
-            self.created_buses_counter += 1
-            self.position_beliefs.internal_table[self.bus_id + self.created_buses_counter] = (self.controller.ticks, 3)
+        if self.controller.ticks % 2 == 0 and not self.current_stop and self.bus_id == 24 and self.created_buses_counter < MainBus._INITIAL_BUSES - 1:# and self.created_buses_counter < 1:
 
+            new_bus_genome_idx = np.random.choice(range(len(self.controller.bus_genomes)), p = self.controller.genome_distro)
+            #print(self.controller.genome_distro, new_bus_genome_idx)
+            new_bus_genome = self.controller.bus_genomes[new_bus_genome_idx]
+
+            # Create bus using the sampled genome
+            self.add_bus(int(new_bus_genome[0]), genome = new_bus_genome)
+
+            self.created_buses_counter += 1
+            #print('Add bus ', self.created_buses_counter + 1, 'Genome ', new_bus_genome)
+            self.position_beliefs.internal_table[self.bus_id + self.created_buses_counter] = (self.controller.ticks, 3)
 
     def make_decisions(self):
 
@@ -82,6 +95,11 @@ class MainBus(Bus):
         state = compute_state_vector(self)
         return state
 
+    def softmax(self, w):
+        e = np.exp(np.array(w))
+        dist = e / np.sum(e)
+        return dist
+
     def compute_next(self, state):
 
         best_score = - np.inf
@@ -105,19 +123,30 @@ class MainBus(Bus):
             #         best_score = score
             #         best_action = next_station
 
-            print('Yet another decision of bus %d' %self.bus_id)
+            flag = False
+
+            scores = []
+
+            #print('Yet another decision of bus %d' %self.bus_id)
             for next_station in possible_actions:
 
-                    print(state[0, 24 + next_station], state[0, 2*24 + next_station], \
-                        state[0, 3*24 + next_station] , state[0, 4*24 + next_station])
+                    #print(state[0, 24 + next_station], state[0, 2*24 + next_station], \
+                    #    state[0, 3*24 + next_station] , state[0, 4*24 + next_station])
 
-                    score = -state[0, 24 + next_station] + 0*state[0, 2*24 + next_station] + \
-                            state[0, 3*24 + next_station] + 0*state[0, 4*24 + next_station]
-                    print(next_station, score)
-                    if score > best_score:
-                        best_score = score
-                        best_action = next_station
-        print("Bus %d goes to %d \n" % (self.bus_id,best_action))
+
+                scores.append(- self.genome[0] * state[0, 24 + next_station] + \
+                            self.genome[1] * state[0, 2*24 + next_station] + \
+                            self.genome[2] * state[0, 3*24 + next_station] + \
+                            self.genome[3] * state[0, 4*24 + next_station])
+
+            soft_scores = self.softmax(scores)
+
+            next_idx = np.random.choice(range(len(scores)), p = soft_scores)
+
+            best_score = soft_scores[next_idx]
+            best_action = possible_actions[next_idx]
+
+        #print("Bus %d goes to %d \n" % (self.bus_id,best_action))
         return best_action, best_score
 
     def compute_next_station(self):
@@ -132,10 +161,8 @@ class MainBus(Bus):
 
     def drop_all_passengers(self):
         passengers_in_bus = [passenger[0] for passenger in self.bus_passengers]
-
         for passenger_id in passengers_in_bus:
             self.drop_off_passenger(passenger_id)
-
 
     def select_passengers(self):
         # Create vector from O to the passenger destiantion weighted by its waiting time
@@ -162,7 +189,7 @@ class MainBus(Bus):
             # Select the best passengers by their dot product score (if they go in the same direction of the bus) until bus capacity
 
             for i in range(len(ordering)):
-                if x[i] > 0:
+                if x[ordering[i]] > 0:
                     selected_passengers.append(passengers[ordering[i]].passenger_id)
                 # If the bus is full, break
                 if len(selected_passengers) == self.capacity:

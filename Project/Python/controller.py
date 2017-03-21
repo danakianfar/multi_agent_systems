@@ -18,7 +18,7 @@ class Controller:
 
     _COST_K = 1e-1
 
-    def __init__(self, bus_class=Bus, loggers=[]):
+    def __init__(self, bus_class=Bus, bus_genomes = [], genome_distro = [], loggers=[]):
         self.buses = {}
         self.bus_class = bus_class
 
@@ -34,9 +34,16 @@ class Controller:
 
         self.replay_memory = []
 
+        if len(bus_genomes) == 0:
+            self.bus_genomes = [[0,0,0,0]]
+            self.genome_distro = [1]
+        else:
+            self.bus_genomes = bus_genomes
+            self.genome_distro = genome_distro
+
         self.reset()
 
-    def reset(self):
+    def reset(self, bus_genomes = [], genome_distro= []):
         self.ticks = 0
         self.num_passengers_delivered = 0
         self.buses.clear()
@@ -46,6 +53,13 @@ class Controller:
         self.total_cost = 0
         self.total_travel_time = 0
         self.communication_cost = 0
+
+        if len(bus_genomes) == 0:
+            self.bus_genomes = [[0,0,0,0]]
+            self.genome_distro = [1]
+        else:
+            self.bus_genomes = bus_genomes
+            self.genome_distro = genome_distro
 
         self.passengers.clear()
         [stop.reset() for stop in self.bus_stops.values()]
@@ -67,7 +81,13 @@ class Controller:
         self.replay_memory.clear()
 
     def setup(self, add_arrivals_noise=False):
-        self.add_bus(1)
+
+        # Randomly sample a genome for the first bus
+        init_bus_genome_idx = np.random.choice(range(len(self.bus_genomes)), p = self.genome_distro)
+        init_bus_genome = self.bus_genomes[init_bus_genome_idx]
+
+        # Create first bus using the sampled genome
+        self.add_bus(init_bus_genome[0], genome = init_bus_genome)
         self.init_daily_ridership(add_arrivals_noise)
 
     def init_daily_ridership(self, add_arrivals_noise=False):
@@ -85,8 +105,7 @@ class Controller:
 
             tick = row['Ticks']  # When the passengers arrive (every 15 ticks)
             source_name = row['FROM']  # source station
-            destination_names_counts = row[Controller.bus_stop_names.keys()][row[
-                                                                                 Controller.bus_stop_names.keys()] > 0]  # Get destination-total_passenger_count tuples where total_passenger_count > 0
+            destination_names_counts = row[Controller.bus_stop_names.keys()][row[Controller.bus_stop_names.keys()] > 0]  # Get destination-total_passenger_count tuples where total_passenger_count > 0
 
             # For each destination-passenger tuple
             passengers = []
@@ -157,12 +176,12 @@ class Controller:
                 P[t + 1, :, s] = distro
         self._m_support = P / B
 
-    def add_bus(self, vehicle_type):
+    def add_bus(self, vehicle_type, genome):
         def bus_creation(vehicle_type):
             # increment the id
             self.last_bus_id += 1
             # create the bus
-            new_bus = self.bus_class(self.last_bus_id, vehicle_type, self.bus_stops[3], self)
+            new_bus = self.bus_class(self.last_bus_id, vehicle_type, self.bus_stops[3], self, genome)
             # add it to the fleet
             self.buses[self.last_bus_id] = new_bus
 
@@ -241,6 +260,7 @@ class Controller:
 
         if self.passengers[passenger_id].destination == bus.current_stop:
             self.deliver_passenger(self.passengers[passenger_id])
+            bus.cum_reward += 1 #self.passengers[passenger_id].get_waiting_time()
         else:
             passenger = self.passengers[passenger_id]
             # load to station
@@ -297,6 +317,3 @@ class Controller:
                     self.logged_data[logger.name].append(data)
 
         self.ticks += 1
-
-
-
