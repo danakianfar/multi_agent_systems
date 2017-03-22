@@ -27,7 +27,7 @@ class Controller:
         self.passengers = {}
 
         # TODO tune
-        self.tollerance = 0.3
+        self.tolerance = 0.3
 
         self.init_map()
 
@@ -67,6 +67,7 @@ class Controller:
         self.actual_passenger_count = 0
 
         self.waiting_cost = 0
+        self.total_waiting_time = 0
 
         self.actions = ActionHeap()
         self.passenger_actions = ActionHeap()
@@ -176,9 +177,9 @@ class Controller:
                         path_len = self.min_dist[source_id][next_id] + self.min_dist[next_id][destination_id]
                         min_len = self.min_dist[source_id][destination_id]
                         self.attractivity[source_id][destination_id][next_id] = -path_len / min_len
-        self.attractivity[self.attractivity != 0] += 1 + self.tollerance
+        self.attractivity[self.attractivity != 0] += 1 + self.tolerance
         self.attractivity[self.attractivity < 0] = 0
-        self.attractivity /= self.tollerance
+        self.attractivity /= self.tolerance
 
     def init_similarity_matrix(self):
         self.similarity_matrix = 1.0 - self.min_dist / self.average_minumum_delivery_time
@@ -313,6 +314,7 @@ class Controller:
 
     def update_waiting_cost(self):
         self.waiting_cost += self.actual_passenger_count
+        self.total_waiting_time += self.actual_passenger_count
         self.waiting_time_matrix += self.passengers_matrix
 
     def send_message(self, sender, bus_id, message):

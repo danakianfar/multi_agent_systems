@@ -21,7 +21,7 @@ class GeneticMainBus(MainBus):
     def compute_next(self, state):
 
         # Evaluate every possible adjacent station to visit (including self)
-        possible_actions = self.connections[self.current_stop.stop_id]  # + [self.current_stop.stop_id]
+        possible_actions = self.connections[self.current_stop.stop_id] + [self.current_stop.stop_id]
 
         # Exploration policy
         if np.random.rand() < self.exploration_parameter:
@@ -45,3 +45,16 @@ class GeneticMainBus(MainBus):
             best_action = possible_actions[next_idx]
 
         return best_action, best_score
+
+
+    def send_messages(self):
+
+        message = {'type': MainBus._MSG_UPDATE, 'content': self.position_beliefs.prepare_message()}
+
+        for bus_id, probability in self.position_beliefs.calculate_transmission_probability().items():
+
+            if np.random.rand() <= (probability * self.genome[-1]):  # Bernoulli coin flip with probability
+                self.send_message(bus_id, message)
+                self.position_beliefs.update_external_table(bus_id)
+                self.num_sent_messages += 1
+                #print(self.bus_id, 'sending message num ', self.num_sent_messages)
