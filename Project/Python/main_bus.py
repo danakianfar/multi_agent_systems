@@ -8,7 +8,7 @@ class MainBus(Bus):
     _MSG_UPDATE = 'update_table'
     _SPREAD_TIME = 60
     _EXPLORATION_PROBABILITY = 0.1  # TODO reset to 0.05
-    _INITIAL_BUSES = 30
+    _INITIAL_BUSES = 50
 
 
 
@@ -22,6 +22,7 @@ class MainBus(Bus):
         self.exploration_parameter = 1
         self.state = None
         self.cum_reward = 0
+        self.num_sent_messages = 0
 
     def bus_creation(self):
         # TODO choose creation policy
@@ -176,3 +177,5 @@ class MainBus(Bus):
             if np.random.rand() <= probability * 0.01:  # Bernoulli coin flip with probability
                 self.send_message(bus_id, message)
                 self.position_beliefs.update_external_table(bus_id)
+                self.num_sent_messages += 1
+                #print(self.bus_id, 'sending message num ', self.num_sent_messages)
