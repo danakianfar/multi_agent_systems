@@ -27,6 +27,10 @@ class MainBus(Bus):
     def bus_creation(self):
         # TODO choose creation policy
         self.add_bus(2)
+        self.created_buses_counter += 1
+        new_bus_id = self.bus_id + self.created_buses_counter
+        self.position_beliefs.internal_table[new_bus_id] = (self.controller.ticks, 3)
+        self.controller.buses[new_bus_id] = MainBus(new_bus_id, 2, self.controller.bus_stops[3], self.controller)
 
     def execute_action(self):
         if self.current_stop:  # call only when at a station
@@ -35,7 +39,7 @@ class MainBus(Bus):
 
             self.make_decisions()
 
-        if self.controller.ticks % 2 == 0 and not self.current_stop and self.bus_id == 24 and self.created_buses_counter < MainBus._INITIAL_BUSES - 1:  # and self.created_buses_counter < 1:
+        if self.controller.ticks % 2 == 0 and self.bus_id == 24 and self.created_buses_counter < MainBus._INITIAL_BUSES - 1:  # and self.created_buses_counter < 1:
             self.bus_creation()
 
     def make_decisions(self):
@@ -166,11 +170,11 @@ class MainBus(Bus):
 
     def send_messages(self):
 
-        message = {'type': MainBus._MSG_UPDATE, 'content': self.position_beliefs.prepare_message()}
+        message = {"type": MainBus._MSG_UPDATE, "content": self.position_beliefs.prepare_message()}
 
         for bus_id, probability in self.position_beliefs.calculate_transmission_probability().items():
 
-            if np.random.rand() <= probability/10:  # Bernoulli coin flip with probability
+            if np.random.rand() <= probability * 0.01:  # Bernoulli coin flip with probability
                 self.send_message(bus_id, message)
                 self.position_beliefs.update_external_table(bus_id)
                 self.num_sent_messages += 1
