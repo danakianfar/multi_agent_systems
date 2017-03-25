@@ -21,7 +21,7 @@ class GeneticMainBus(MainBus):
     def compute_next(self, state):
 
         # Evaluate every possible adjacent station to visit (including self)
-        possible_actions = self.connections[self.current_stop.stop_id] + [self.current_stop.stop_id]
+        possible_actions = self.connections[self.current_stop.stop_id] #+ [self.current_stop.stop_id]
 
         # Exploration policy
         if np.random.rand() < self.exploration_parameter:
