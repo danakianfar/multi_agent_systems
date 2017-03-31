@@ -26,8 +26,7 @@ class Controller:
         self.bus_stops = {}
         self.passengers = {}
 
-        # TODO tune
-        self.tolerance = 0.3
+        self.tolerance = 0.2
 
         self.init_map()
 
@@ -73,6 +72,8 @@ class Controller:
         self.passenger_actions = ActionHeap()
 
         self.logged_data = {l.name: [] for l in self.loggers}
+
+        self.total_messages_count = 0
 
         self.replay_memory.clear()
 
@@ -236,7 +237,10 @@ class Controller:
 
     def get_total_cost(self):
         # return (Controller._COST_K * self.get_waiting_cost() + self.get_execution_cost()) * 1E-6
-        return self.get_waiting_cost() * 1E-6
+        return self.get_waiting_cost()
+
+    def get_messages_sent(self):
+        return self.total_messages_count
 
     def travel_to(self, bus, bus_stop):
         assert bus.current_stop
@@ -294,18 +298,22 @@ class Controller:
         bus.bus_passengers.remove((passenger_id, self.passengers[passenger_id].destination.stop_id))
 
         self.travelling_passengers -= 1
+        delivered = 0
 
         passenger = self.passengers[passenger_id]
 
         if self.passengers[passenger_id].destination == bus.current_stop:
             self.deliver_passenger(passenger)
             bus.cum_reward += 1
+            delivered = 1
         else:
             # load to station
             self.bus_stops[bus.current_stop.stop_id].add_waiting_passenger(self.passengers[passenger_id])
             self.passengers_matrix[bus.current_stop.stop_id, passenger.destination.stop_id] += 1
             self.waiting_time_matrix[
                 bus.current_stop.stop_id, passenger.destination.stop_id] += passenger.get_waiting_time()
+
+        return delivered
 
     def deliver_passenger(self, passenger):
         self.num_passengers_delivered += 1
@@ -318,7 +326,7 @@ class Controller:
         self.waiting_time_matrix += self.passengers_matrix
 
     def send_message(self, sender, bus_id, message):
-
+        self.total_messages_count += 1
         def send_message(receiver, time, sender_id, message):
             receiver.inbox.append((time, sender_id, message))
 

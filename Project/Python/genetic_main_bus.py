@@ -2,59 +2,68 @@ from main_bus import *
 import numpy as np
 
 class GeneticMainBus(MainBus):
+
     def __init__(self, bus_id, bus_type, init_stop, controller, genome=None):
         MainBus.__init__(self, bus_id, bus_type, init_stop, controller)
         self.genome = genome
+        self.exploration_probability = 0
+        self.movement_policy_switch_time = MainBus._DEFAULT_MOVEMENT_SWITCH_TIME
+        self.initial_buses = 70
+
 
     def bus_creation(self):
-        new_bus_genome_idx = np.random.choice(range(len(self.controller.bus_genomes)),
-                                              p=self.controller.genome_distro)
-        # print(self.controller.genome_distro, new_bus_genome_idx)
-        new_bus_genome = self.controller.bus_genomes[new_bus_genome_idx]
+        # initial bus creation policy
+        if self.initial_creation_policy:
+            if self.controller.ticks % 2 == 0:
+                new_bus_genome_idx = np.random.choice(range(len(self.controller.bus_genomes)),
+                                                      p=self.controller.genome_distro)
+                # print(self.controller.genome_distro, new_bus_genome_idx)
+                new_bus_genome = self.controller.bus_genomes[new_bus_genome_idx]
 
-        # Create bus using the sampled genome
-        self.add_bus(int(new_bus_genome[0]), genome=new_bus_genome)
+                # Create bus using the sampled genome
+                type = int(new_bus_genome[0])
+                self.add_bus(type, genome=new_bus_genome)
 
-        self.created_buses_counter += 1
-        self.position_beliefs.internal_table[self.bus_id + self.created_buses_counter] = (self.controller.ticks, 3)
+                self.created_buses_counter += 1
+                self.beliefs.internal_table[self.bus_id + self.created_buses_counter] = {
+                    'arrival_time': self.controller.ticks,
+                    'destination': 3,
+                    'capacity': type,
+                    'vote': 0}
 
-    def compute_next(self, state):
+        # voting bus creation policy
+        else:
+            # TODO write the voting policy for genetic
+            pass
 
-        # Evaluate every possible adjacent station to visit (including self)
-        possible_actions = self.connections[self.current_stop.stop_id] #+ [self.current_stop.stop_id]
 
-        # Exploration policy
-        if np.random.rand() < self.exploration_parameter:
-            best_action = np.random.choice(possible_actions)
-            best_score = 100
+    def compute_next(self, state, possible_actions):
 
-        else:  # Exploitation policy
-            scores = []
+        scores = []
 
-            for next_station in possible_actions:
-                scores.append(self.genome[0] * state[0, 24 + next_station] + \
-                              self.genome[1] * state[0, 2 * 24 + next_station] + \
-                              self.genome[2] * state[0, 3 * 24 + next_station] + \
-                              self.genome[3] * state[0, 4 * 24 + next_station])
+        for next_station in possible_actions:
+            scores.append(self.genome[0] * state[0, 24 + next_station] + \
+                          self.genome[1] * state[0, 2 * 24 + next_station] + \
+                          self.genome[2] * state[0, 3 * 24 + next_station] + \
+                          self.genome[3] * state[0, 4 * 24 + next_station])
 
-            soft_scores = self.softmax(scores)
+        soft_scores = self.softmax(scores)
 
-            next_idx = np.random.choice(range(len(scores)), p=soft_scores)
+        next_idx = np.random.choice(range(len(scores)), p=soft_scores)
 
-            best_score = soft_scores[next_idx]
-            best_action = possible_actions[next_idx]
+        best_score = soft_scores[next_idx]
+        best_action = possible_actions[next_idx]
 
         return best_action, best_score
 
 
     def send_messages(self):
 
-        message = {'type': MainBus._MSG_UPDATE, 'content': self.position_beliefs.prepare_message()}
+        message = {'type': MainBus._MSG_UPDATE, 'content': self.beliefs.prepare_message()}
 
-        for bus_id, probability in self.position_beliefs.calculate_transmission_probability().items():
-
-            if np.random.rand() <= (probability * self.genome[-1]):  # Bernoulli coin flip with probability
-                self.send_message(bus_id, message)
-                self.position_beliefs.update_external_table(bus_id)
-                self.num_sent_messages += 1
-                #print(self.bus_id, 'sending message num ', self.num_sent_messages)
+        for bus_id, probability in self.beliefs.calculate_transmission_probability().items():
+            if bus_id in self.controller.buses.keys():
+                if np.random.rand() <= (probability * self.genome[-1]):  # Bernoulli coin flip with probability
+                    self.send_message(bus_id, message)
+                    self.beliefs.update_external_table(bus_id)
+                    self.num_sent_messages += 1

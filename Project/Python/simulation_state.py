@@ -6,17 +6,16 @@ def get_current_bus_position_vector(bus):
     return np.eye(N)[bus.current_stop.stop_id, :]
 
 def get_expected_station_capacity_vector(bus):
-    bus_ids = bus.position_beliefs.internal_table.keys()
-    bus_capacities = np.array([bus.controller.buses[bus_id].capacity for bus_id in bus_ids]).reshape((-1, 1))
+    bus_ids = bus.beliefs.internal_table.keys()
+    bus_capacities = np.array([bus.beliefs.internal_table[bus_id]['capacity'] for bus_id in bus_ids]).reshape((-1, 1))
 
     N = len(bus.controller.bus_stop_names)
     K = len(bus_ids)  # num of other buses we know about
     M = np.zeros((K, N))  # station-bus presence distribution
 
     # for each bus, get its station (future) presence distribution
-    # TODO do all in one step
     for i, bus_id in enumerate(bus_ids):
-        M[i, :] = bus.position_beliefs.compute_internal_probability(bus_id)
+        M[i, :] = bus.beliefs.compute_internal_probability(bus_id)
 
     return M.T.dot(bus_capacities).reshape(-1)  # (NxK) x (Kx1)
 

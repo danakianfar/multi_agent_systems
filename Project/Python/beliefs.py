@@ -1,7 +1,7 @@
 from bus import *
 import numpy as np
 
-class PositionBeliefs:
+class Beliefs:
 
     def __init__(self, bus):
         self.internal_table = {} # what we know about other buses' positions
@@ -13,12 +13,17 @@ class PositionBeliefs:
 
         destination = self.bus.next_stop 
         arrival_time = self.bus.arrival_time
+        capacity = self.bus.capacity
+        vote = self.bus.vote()
 
         if not destination:
             arrival_time = self.bus.controller.ticks + 1
             destination = self.bus.current_stop
 
-        message[self.bus.bus_id] = (arrival_time, destination.stop_id)
+        message[self.bus.bus_id] = {'arrival_time': arrival_time,
+                                    'destination': destination.stop_id,
+                                    'capacity': capacity,
+                                    'vote': vote}
 
         return message
 
@@ -30,26 +35,28 @@ class PositionBeliefs:
 
     def update_beliefs(self, sender_id, received_table):
 
-         for b_id , time_station in received_table.items():
+         for b_id , bus_data in received_table.items():
             
             # update internal table
             if b_id != self.bus.bus_id: # for all buses thats not us
 
                 # If bus is not in internal table, add it 
                 if b_id not in self.internal_table:
-                    self.internal_table[b_id] = time_station
+                    self.internal_table[b_id] = bus_data
                 
-                elif time_station[0] > self.internal_table[b_id][0]: # if received entry is more up-to-date, update beliefs
-                    self.internal_table[b_id] = time_station   
+                elif bus_data['arrival_time'] > self.internal_table[b_id]['arrival_time']: # if received entry is more up-to-date, update beliefs
+                    self.internal_table[b_id] = bus_data
 
             # update external table
             else:
                 # If bus is not in external table, add it 
                 if sender_id not in self.external_table:
-                    self.external_table[sender_id] = time_station # they received info about us from someone else
+                    self.external_table[sender_id] = {'arrival_time':bus_data['arrival_time'],
+                                                      'destination':bus_data['destination'] } # they received info about us from someone else
                 
-                elif time_station[0] > self.external_table[sender_id][0]: # if received entry is more up-to-date, update beliefs
-                    self.external_table[sender_id] = time_station  
+                elif bus_data['arrival_time'] > self.external_table[sender_id]['arrival_time']: # if received entry is more up-to-date, update beliefs
+                    self.external_table[sender_id] = {'arrival_time':bus_data['arrival_time'],
+                                                      'destination':bus_data['destination'] }
             
     def update_external_table(self, bus_id):
         destination = self.bus.next_stop
@@ -57,8 +64,10 @@ class PositionBeliefs:
         if not destination:
             arrival_time = self.bus.controller.ticks + 1
             destination = self.bus.current_stop
-
-        self.external_table[bus_id] = (self.bus.arrival_time, destination.stop_id)
+        if bus_id not in self.external_table:
+            self.external_table[bus_id] = {}
+        self.external_table[bus_id]['arrival_time'] = arrival_time
+        self.external_table[bus_id]['destination'] = destination.stop_id
         
     def compute_internal_probability(self, bus_id):
         return self.compute_probability_distribution(bus_id, self.internal_table)
@@ -69,9 +78,10 @@ class PositionBeliefs:
     def compute_probability_distribution(self, bus_id, table):
         if bus_id in table:
 
-            _avg_travel_time = 5
+            _avg_travel_time = self.bus.controller.average_travel_time
 
-            timestamp, stop_id = table[bus_id]
+            timestamp = table[bus_id]['arrival_time']
+            stop_id = table[bus_id]['destination']
             delta_t = self.bus.controller.ticks - timestamp 
             
             if delta_t < 0:

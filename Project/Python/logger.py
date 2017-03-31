@@ -82,3 +82,46 @@ class StateLogger(Logger):
                     return False
 
             Logger.__init__(self, 'Bus {} State Logger'.format(bus_id), log_one_state, save_every=save_every)
+
+
+class InternalEntropyLogger(Logger):
+    def __init__(self, bus_id=None, target_id=None, save_every=1):
+        if bus_id:
+            def log_entropy(controller):
+                if bus_id in controller.buses:
+                    bus = controller.buses[bus_id]
+                    if target_id in bus.beliefs.internal_table:
+                        return (controller.ticks, bus.beliefs.compute_internal_entropy(target_id))
+                    else:
+                        h = 0
+                        n = 0
+                        for b_id in bus.beliefs.internal_table.keys():
+                            h += bus.beliefs.compute_internal_entropy(b_id)
+                            n += 1.
+                        if n > 0:
+                            h /= n
+                        return h
+                else:
+                    return False
+
+            Logger.__init__(self, 'Bus {}->{} internal entropy logger'.format(bus_id, target_id), log_entropy, save_every=save_every)
+
+class ExternalEntropyLogger(Logger):
+    def __init__(self, bus_id=None, target_id=None, save_every=1):
+        if bus_id and target_id:
+            def log_entropy(controller):
+                if bus_id in controller.buses:
+                    bus = controller.buses[bus_id]
+                    if target_id in bus.beliefs.internal_table:
+                        return (controller.ticks, bus.beliefs.compute_external_entropy(target_id))
+                    else:
+                        return False
+                else:
+                    return False
+
+            Logger.__init__(self, 'Bus {}->{} external entropy logger'.format(bus_id, target_id), log_entropy, save_every=save_every)
+
+
+class MessageLogger(Logger):
+    def __init__(self, save_every=1):
+        Logger.__init__(self, 'Message Logger', lambda c: c.total_messages_count, save_every=save_every)

@@ -8,7 +8,6 @@ class Passenger:
         self.spawn_time = spawn_time
         self.current_stop = source
         self.controller = controller
-        self.tolerance = 0.2
         
     def get_waiting_time(self):
         return self.controller.ticks-self.spawn_time

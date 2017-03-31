@@ -8,7 +8,7 @@ class DestinationModel:
     def __init__(self, stop_connections, gamma=0.99):
         # Q with current weights
         self.model = self.get_network_structure()
-        self.model.compile(optimizer='adam', loss='mse', lr=0.0001)
+        self.model.compile(optimizer='adam', loss='mse', lr=0.001)
 
         # Q with "frozen" weights
         self.target_network = self.get_network_structure()
@@ -86,7 +86,7 @@ class DestinationModel:
             targets.append(reward + self.gamma * qscore)
 
         # print(np.squeeze(np.array(inputs)).shape, np.squeeze(np.array(targets)).shape)
-        self.model.fit(np.squeeze(np.array(inputs)), np.squeeze(np.array(targets)), #epochs=1,
+        self.model.fit(np.squeeze(np.array(inputs)), np.squeeze(np.array(targets)), epochs=5,
                        batch_size=len(training_batch), verbose=0)
 
         # Update target weights

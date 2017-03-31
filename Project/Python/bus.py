@@ -63,7 +63,7 @@ class Bus:
         self.controller.pick_up_passenger(self, passenger_id)
 
     def drop_off_passenger(self, passenger_id):
-        self.controller.drop_off_passenger(self, passenger_id)
+        return self.controller.drop_off_passenger(self, passenger_id)
 
     def get_passengers_at_stop(self, stop_id):
         return [i for i in self.controller.bus_stops[stop_id].passengers_waiting] # copy
