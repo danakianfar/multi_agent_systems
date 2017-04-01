@@ -1,0 +1,8 @@
+The file simulation_result.avi shows the result of the simulation of a whole day.
+Buses are represented with green squares (regardless their type) and they are associated with a label indicating their id and number of passengers inside the bus.
+The travelling process is represented with a 2 steps animation where the bus moves to the first third of the edge connecting the source and destination and appears at its destination after the amount of time implied by the traveling action.
+Bus stops are represented with blue dots associated with a label containing their id, abbreviation and number of waiting passengers (in parenthesis).
+
+A new simulation can be created and observed by running the run_simulation.py python script.
+
+The python notebook file learning.ipynb shows the evolution procedure and training phase for the DQN algorithm.

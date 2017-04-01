@@ -10,5 +10,5 @@ simulation = Simulation(MainBus)
 
 
 simulation.reset()
-simulation.execute(iterations=whole_day, animate=True, interval=250, save_file='simulation_result.avi')
 plt.show()
+simulation.execute(iterations=whole_day, animate=True, interval=250, save_file='simulation_result.avi')
