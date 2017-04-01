@@ -8,28 +8,32 @@ class GeneticMainBus(MainBus):
         self.genome = genome
         self.exploration_probability = 0
         self.movement_policy_switch_time = MainBus._DEFAULT_MOVEMENT_SWITCH_TIME
-        self.initial_buses = 70
+        self.initial_buses = 50
+
+
+    def create_bus(self):
+        new_bus_genome_idx = np.random.choice(range(len(self.controller.bus_genomes)),
+                                              p=self.controller.genome_distro)
+        # print(self.controller.genome_distro, new_bus_genome_idx)
+        new_bus_genome = self.controller.bus_genomes[new_bus_genome_idx]
+
+        # Create bus using the sampled genome
+        type = int(new_bus_genome[0])
+        self.add_bus(type, genome=new_bus_genome)
+
+        self.created_buses_counter += 1
+        self.beliefs.internal_table[self.bus_id + self.created_buses_counter] = {
+            'arrival_time': self.controller.ticks,
+            'destination': 3,
+            'capacity': type,
+            'vote': 0}
 
 
     def bus_creation(self):
         # initial bus creation policy
         if self.initial_creation_policy:
             if self.controller.ticks % 2 == 0:
-                new_bus_genome_idx = np.random.choice(range(len(self.controller.bus_genomes)),
-                                                      p=self.controller.genome_distro)
-                # print(self.controller.genome_distro, new_bus_genome_idx)
-                new_bus_genome = self.controller.bus_genomes[new_bus_genome_idx]
-
-                # Create bus using the sampled genome
-                type = int(new_bus_genome[0])
-                self.add_bus(type, genome=new_bus_genome)
-
-                self.created_buses_counter += 1
-                self.beliefs.internal_table[self.bus_id + self.created_buses_counter] = {
-                    'arrival_time': self.controller.ticks,
-                    'destination': 3,
-                    'capacity': type,
-                    'vote': 0}
+                self.create_bus()
 
         # voting bus creation policy
         else:
