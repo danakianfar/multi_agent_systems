@@ -1,0 +1,130 @@
+buses-own [
+  ; Static, read-only variables. These values never change. You can read them, but you cannot change them.
+  bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
+  bus_type        ; The type of a given agent (bus). 1 means "small", 2 means "medium" and 3 means "large".
+    
+  ; Dynamic, read-only variables. These values may change over time. You can read them, but you cannot change them.
+  inbox           ; List containing all the incoming messages (a given message is a list like this [tick sender message]).
+  bus_passengers  ; List containing all the passengers that the agent (bus) is currently carrying (represented as a list like this [passenger_id bus_stop]).
+  previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
+  current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
+  next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
+
+  ; New local variables for students.
+  ; You can create any new local variable you want. Just declare them here.
+  last_stop
+  busses_to_call
+  capacity
+  bus_route
+  destination
+  route_index
+]
+ 
+globals [graph]
+
+to init-buses
+  
+  ; The bus 24 has is the one who has to call new buses
+  ifelse bus_id = 24
+  [
+    ; 30 buses will be called
+    set busses_to_call 10
+  ]
+  [
+    set busses_to_call 0
+  ]
+  
+  
+  ; every bus has his own route and capacity
+  if bus_type = 1
+  [
+    set capacity bus_type1_capacity
+    ; smaller busses conver the whole map 
+    set bus_route [3 9 8 6 8 2 8 9 20 21 22 12 15 18 15 0 14 23 19 1 7 13 10 17 11 16 5 10 4]
+  ]
+  if bus_type = 2
+  [
+    set capacity bus_type2_capacity
+    ; medium size buses cover almost all the map
+    set bus_route [3 4 10 5 16 11 17 7 1 19 23 14 0 15 18 15 12 20 9]
+  ]
+  if bus_type = 3
+  [
+    set capacity bus_type3_capacity
+    ; maximum size buses travel the shortest route
+    set bus_route [3 9 20 12 15 0 14 23 19 1 7 17 11 16 5 10 4]
+  ]
+  
+  set route_index 1
+  set destination item route_index bus_route
+  
+  
+  ; This list contains the topology of the entire network of bus stops, which is known to all agents. You can use this, for instance, to calculate the shortest path between two bus stops.
+  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+end
+
+to execute-actions
+  
+  ; if a bus wants to call other buses, every 5 ticks (for desynchronization)
+  if busses_to_call > 0 and ticks mod 5 = 0
+  [
+    ; add buses of alternating type
+    add-bus 3 ;busses_to_call mod 3 + 1
+    set busses_to_call busses_to_call - 1
+  ]
+  
+  ; if the bus is at one stop
+  if current_stop != -1 
+  [
+    ; deliver all the passengers in the bus that got to their final destination
+    if length bus_passengers > 0 
+    [
+      foreach bus_passengers 
+      [
+        if item 1 ? = current_stop
+        [
+          drop-off-passenger item 0 ?
+        ]
+      ]
+    ]
+    
+    let passengers_count length (get-passengers-at-stop current_stop)
+    ; if there is someone waiting at the bus stop and the bus is not full
+    if (passengers_count > 0) 
+    [
+      foreach get-passengers-at-stop current_stop
+      [
+        ; if there is still space in the bus
+        if length bus_passengers < capacity 
+        [
+          let stop_in_route false
+          let passenger_destination item 1 ?
+          foreach bus_route
+          [
+            if passenger_destination = ?
+            [
+              set stop_in_route true
+            ]
+          ]
+          
+          ; and the passenger destination is in the bus route
+          if stop_in_route
+          [
+            ; pick him up
+            pick-up-passenger item 0 ?
+          ]
+        ]
+      ]
+    ]
+    
+  ]
+
+  ; once the bus gets to his destination sets the following one
+  if next_stop = -1
+  [
+    set route_index (route_index + 1) mod length bus_route
+    set destination item route_index bus_route
+  ]
+  travel-to destination
+  
+end

@@ -1,0 +1,379 @@
+buses-own [
+  ; Static, read-only variables. These values never change. You can read them, but you cannot change them.
+  bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
+  bus_type        ; The type of a given agent (bus). 1 means "small", 2 means "medium" and 3 means "large".
+    
+  ; Dynamic, read-only variables. These values may change over time. You can read them, but you cannot change them.
+  inbox           ; List containing all the incoming messages (a given message is a list like this [tick sender message]).
+  bus_passengers  ; List containing all the passengers that the agent (bus) is currently carrying (represented as a list like this [passenger_id bus_stop]).
+  previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
+  current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
+  next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
+
+  ; New local variables for students.
+  ; You can create any new local variable you want. Just declare them here.
+  last_stop
+  n_buses
+  busses_to_call
+  capacity
+  destination    ;my current destination
+  traffic_table  ;keeps the current destination for each bus in the system
+  preferences    ;keeps track of the bus preferences
+  buses_to_update;keeps track of the buses that have been just created and still need a route table
+  votes          ;votes received
+]
+
+extensions [table]
+
+globals [graph]
+
+to init-buses
+  
+  set n_buses 1
+  set next_stop -1
+  
+  set traffic_table table:make
+  
+  ; This list contains the topology of the entire network of bus stops, which is known to all agents. You can use this, for instance, to calculate the shortest path between two bus stops.
+  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+  ; The bus 24 has is the one who has to call new buses
+
+  ifelse bus_id = 24
+  [
+    ; 10 buses will be called
+    set busses_to_call 10
+    
+    ; create traffic table
+    let i 0
+    foreach graph[
+      table:put traffic_table i []
+      set i (i + 1)
+    ] 
+  ]
+  [
+    set busses_to_call 0
+    set traffic_table -1
+  ]
+  
+  ; every bus has his own route and capacity
+  if bus_type = 1 [set capacity bus_type1_capacity]
+  if bus_type = 2 [set capacity bus_type2_capacity]
+  if bus_type = 3 [set capacity bus_type3_capacity]
+  
+  set buses_to_update []
+  
+  ; initialize the preference counters
+  set preferences table:make
+  reset-preferences
+  
+  ; initialize the vote list
+  set votes []
+      
+end
+
+to reset-preferences
+  table:put preferences "none" 0
+  table:put preferences "type1" 0
+  table:put preferences "type2" 0
+  table:put preferences "type3" 0
+end
+
+
+to update-table[sender content]
+  
+  ifelse bus_id = 24
+  [
+    let sender_source (item 0 content)
+    let sender_dest (item 1 content)
+    
+    ; removes bus from "sender_source" list
+    let ls1 (remove sender (table:get traffic_table sender_source))
+    table:put traffic_table sender_source ls1
+    
+    ; add bus to "sender_dest" list
+    let ls2 (lput sender (table:get traffic_table sender_dest))
+    table:put traffic_table sender_dest ls2
+  ]
+  [
+    if length inbox > 0
+    [
+      set traffic_table content
+    ]
+  ]
+end
+
+to-report compute-preferences-order
+  let preferences_order []
+  
+  while [(length preferences_order) < 4] [
+    let preference -1
+    let c -1
+    foreach table:keys preferences [
+      if table:get preferences ? > c [
+        set preference ?
+        set c table:get preferences ?
+      ]
+    ]
+    set preferences_order lput preference preferences_order 
+    table:put preferences preference -1
+  ]
+  reset-preferences
+  report preferences_order
+end
+
+to send-preferences
+  let message table:make
+  table:put message "type" "vote"
+  let preferences_order (compute-preferences-order)
+
+  table:put message "content" preferences_order
+  
+  if bus_id != 24 [
+    send-message 24 message
+  ]
+end
+
+to process-votes
+  let results table:make
+  table:put results "none" 0
+  table:put results "type1" 0
+  table:put results "type2" 0
+  table:put results "type3" 0
+  
+  
+  foreach votes [
+    let vote ?
+    let points 3
+    foreach vote [
+      table:put results ? (table:get results ?) + points
+      set points points - 1
+    ]
+  ]
+  
+  
+  ; add self preferences to the list
+  let points 3
+  foreach compute-preferences-order [
+    table:put results ? (table:get results ?) + points
+    set points points - 1
+  ]
+    
+  let global_preference -1
+  let c -1
+  foreach table:keys results [
+    if table:get results ? > c [
+        set global_preference ?
+        set c table:get results ?
+     ]
+  ]
+  
+  let bus_to_add 0
+  
+  if global_preference = "type1"[
+    set bus_to_add 1
+  ]
+  if global_preference = "type2"[
+    set bus_to_add 2
+  ]
+  if global_preference = "type3"[
+    set bus_to_add 3
+  ]
+  
+  if bus_to_add > 0 [
+    ; add buses of alternating type
+    add-bus bus_to_add
+    set n_buses (n_buses + 1)
+    set buses_to_update lput (23 + n_buses) buses_to_update
+  ]
+  
+end
+
+to process-messages
+  let updated false
+
+  foreach inbox[
+    let sender (item 1 ?)
+    let message (item 2 ?)
+    let message_type table:get message "type"
+    let message_content table:get message "content"
+    
+    if message_type = "route_update" [
+      update-table sender message_content
+      set updated true
+    ]
+    if message_type = "vote_request" [
+      send-preferences
+    ]
+    if message_type = "vote" [
+      set votes lput message_content votes
+    ]
+  ]
+  
+  if updated and bus_id = 24 [
+    broadcast-table
+  
+    if length votes = n_buses - 1 [
+      process-votes
+      set votes []
+    ]
+  ]
+  
+  set inbox []
+  
+end
+
+to send-route-table[receiver]
+  let message table:make
+  table:put message "type" "route_update"
+  table:put message "content" traffic_table
+  send-message receiver message
+end
+
+to send-vote-request[receiver]
+  let message table:make
+  table:put message "type" "vote_request"
+  table:put message "content" []
+  if receiver != 24 [
+    send-message receiver message
+  ]
+end
+
+to broadcast-table
+  let i 1
+  while [ i < n_buses]
+  [
+    send-route-table (24 + i)
+    set i (i + 1)
+  ]
+end
+
+to broadcast-vote-request
+  let i 1
+  while [ i < n_buses]
+  [
+    send-vote-request (24 + i)
+    set i (i + 1)
+  ]
+end
+
+to decide-next-move
+  
+  let best_cand nobody
+  let best_crowd 10000
+  
+  foreach (shuffle (item current_stop graph)) [
+    let curr_crowd (length (table:get traffic_table ?))
+    
+    if curr_crowd < best_crowd [
+      set best_cand ? 
+      set best_crowd curr_crowd
+    ]
+     
+  ]
+  
+  set destination best_cand
+  
+  ; sends message to control bus
+  let message table:make
+  table:put message "type" "route_update"
+  table:put message "content" (list current_stop best_cand)
+  if bus_id != 24 [
+    send-message 24 message
+  ]
+end
+
+
+to update-preferences
+  let remaining_passengers length (get-passengers-at-stop current_stop)
+  
+  let decision "none"
+  
+  ; if the remeining passengers wouldn't fit in a type2 bus increment type3 preference
+  if remaining_passengers > bus_type2_capacity [
+    set decision "type3"
+  ]
+  
+  ; if the remeining passengers wouldn't fit in a type1 bus increment type2 preference
+  if remaining_passengers > bus_type1_capacity and decision = "none" [
+    set decision "type2"
+  ]
+  
+  ; if the remaining passenger would fit in a type1 bus increment its preference
+  if remaining_passengers > 0 and decision = "none" [
+    set decision "type1"
+  ]
+         
+  table:put preferences decision (table:get preferences decision) + 1
+end
+
+
+to execute-actions
+  
+  ; update the route table of the buses that have just been created
+  if bus_id = 24 and length buses_to_update > 0 [
+    foreach buses_to_update [
+      send-route-table ?
+    ]
+    set buses_to_update []
+  ]
+  
+  process-messages
+  
+  ; if a bus wants to call other buses, every 5 ticks (for desynchronization)
+  if busses_to_call > 0 and ticks mod 5 = 0
+  [
+    ; add buses of alternating type
+    add-bus busses_to_call mod 3 + 1
+    set n_buses (n_buses + 1)
+    set busses_to_call (busses_to_call - 1)
+    set buses_to_update lput (23 + n_buses) buses_to_update
+  ]
+  
+  ; every 20 ticks bus 24 asks for votes
+  if ticks mod 20 = 19 and bus_id = 24 and busses_to_call = 0 [
+    broadcast-vote-request
+  ]
+    
+  if traffic_table != -1 [
+
+    ; if the bus is at one stop
+    if current_stop != -1 
+    [
+      ; deliver all the passengers in the bus that got to their final destination
+      if length bus_passengers > 0 
+      [
+        foreach bus_passengers 
+        [
+          if item 1 ? = current_stop
+          [
+            drop-off-passenger item 0 ?
+          ]
+        ]
+      ]
+      
+      let passengers_count length (get-passengers-at-stop current_stop)
+      ; if there is someone waiting at the bus stop and the bus is not full
+      if (passengers_count > 0) 
+      [
+        foreach get-passengers-at-stop current_stop
+        [
+          ; if there is still space in the bus
+          if length bus_passengers < capacity 
+          [
+            ; pick him up
+            pick-up-passenger item 0 ?
+          ]
+        ]
+      ]
+      
+      update-preferences
+    ]
+    
+    ; once the bus gets to his destination sets the following one
+    if next_stop = -1
+    [
+      decide-next-move 
+    ]
+    travel-to destination 
+  ]
+end

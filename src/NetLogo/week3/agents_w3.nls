@@ -1,0 +1,179 @@
+buses-own [
+  ; Static, read-only variables. These values never change. You can read them, but you cannot change them.
+  bus_id          ; The ID of a given agent (bus). Each agent has a unique ID.
+  bus_type        ; The type of a given agent (bus). 1 means "small", 2 means "medium" and 3 means "large".
+    
+  ; Dynamic, read-only variables. These values may change over time. You can read them, but you cannot change them.
+  inbox           ; List containing all the incoming messages (a given message is a list like this [tick sender message]).
+  bus_passengers  ; List containing all the passengers that the agent (bus) is currently carrying (represented as a list like this [passenger_id bus_stop]).
+  previous_stop   ; ID of the last bus stop that the agent (bus) visited (-1 means that the agent has not visited any bus stop yet).
+  current_stop    ; ID of the bus stop where the agent (bus) currently is (-1 means that the agent is not at any bus stop).
+  next_stop       ; ID of the bus stop the agent (bus) is traveling to (-1 means that the agent is not travelling to any bus stop).
+
+  ; New local variables for students.
+  ; You can create any new local variable you want. Just declare them here.
+  last_stop
+  n_buses
+  busses_to_call
+  capacity
+  destination    ;my current destination
+  traffic_table  ;keeps the current destination for each bus in the system
+]
+
+extensions [table]
+
+globals [graph]
+
+to init-buses
+  
+  set n_buses 1
+  set next_stop -1
+  
+  set traffic_table table:make
+  
+  ; This list contains the topology of the entire network of bus stops, which is known to all agents. You can use this, for instance, to calculate the shortest path between two bus stops.
+  set graph [[22 15 14] [11 19 23 7] [8] [16 4 20 9] [3 5 10] [4 16 10 17] [8] [1 17 13] [2 6 9] [3 8 20] [4 5 17 13 21] [1 16 17] [20 15 22] [7 10 22 23] [0 23] [0 12 18] [3 5 11] [5 7 10 11] [15] [1 23] [3 9 12 21] [10 20 22] [0 12 13 21] [1 13 14 19]]
+  ; The bus 24 has is the one who has to call new buses
+
+  ifelse bus_id = 24
+  [
+    ; 30 buses will be called
+    set busses_to_call 10  
+    
+    ; create traffic table
+    let i 0
+    foreach graph[
+      table:put traffic_table i []
+      set i (i + 1)
+    ] 
+  ]
+  [
+    set busses_to_call 0
+    set traffic_table -1
+  ]
+  
+  ; every bus has his own route and capacity
+  if bus_type = 1 [set capacity bus_type1_capacity]
+  if bus_type = 2 [set capacity bus_type2_capacity]
+  if bus_type = 3 [set capacity bus_type3_capacity]
+      
+end
+
+
+to update-table
+  
+  ifelse bus_id = 24
+  [
+    foreach inbox[
+      let sender (item 1 ?)
+      let message (item 2 ?)
+      let sender_source (item 0 message)
+      let sender_dest (item 1 message)
+      
+      ; removes bus from "sender_source" list
+      let ls1 (remove sender (table:get traffic_table sender_source))
+      table:put traffic_table sender_source ls1
+      
+      ; add bus to "sender_dest" list
+      let ls2 (lput sender (table:get traffic_table sender_dest))
+      table:put traffic_table sender_dest ls2
+    ]
+    broadcast-table
+  ]
+  [
+    if length inbox > 0
+    [
+      set traffic_table item 2 (last inbox) 
+    ]
+  ]
+  
+  set inbox []
+end
+
+to broadcast-table
+  let i 1
+  while [ i < n_buses]
+  [
+    send-message (24 + i) traffic_table
+    set i (i + 1)
+  ]
+end
+
+to decide-next-move
+  
+  let best_cand nobody
+  let best_crowd 10000
+  
+  foreach (shuffle (item current_stop graph)) [
+    let curr_crowd (length (table:get traffic_table ?))
+    
+    if curr_crowd < best_crowd [
+      set best_cand ? 
+      set best_crowd curr_crowd
+    ]
+     
+  ]
+  
+  set destination best_cand
+  
+  let message (list current_stop best_cand)
+  ; sends message to control bus
+  send-message 24 message
+end
+
+
+to execute-actions
+  
+  update-table
+  
+  ; if a bus wants to call other buses, every 5 ticks (for desynchronization)
+  if busses_to_call > 0 and ticks mod 5 = 0
+  [
+    ; add buses of alternating type
+    add-bus busses_to_call mod 3 + 1
+    set n_buses (n_buses + 1)
+    set busses_to_call (busses_to_call - 1)
+  ]
+    
+  if traffic_table != -1 [
+
+    ; if the bus is at one stop
+    if current_stop != -1 
+    [
+      ; deliver all the passengers in the bus that got to their final destination
+      if length bus_passengers > 0 
+      [
+        foreach bus_passengers 
+        [
+          if item 1 ? = current_stop
+          [
+            drop-off-passenger item 0 ?
+          ]
+        ]
+      ]
+      
+      let passengers_count length (get-passengers-at-stop current_stop)
+      ; if there is someone waiting at the bus stop and the bus is not full
+      if (passengers_count > 0) 
+      [
+        foreach get-passengers-at-stop current_stop
+        [
+          ; if there is still space in the bus
+          if length bus_passengers < capacity 
+          [
+            ; pick him up
+            pick-up-passenger item 0 ?
+          ]
+        ]
+      ]
+      
+    ]
+    
+    ; once the bus gets to his destination sets the following one
+    if next_stop = -1
+    [
+      decide-next-move 
+    ]
+    travel-to destination 
+  ]
+end
