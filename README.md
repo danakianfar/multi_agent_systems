@@ -14,7 +14,7 @@ We are tasked with designing an autonomous public transportation system for the 
 
 In our setup each agent is a bus, and its environment consists of other agents, passengers, and 24 bus stops represented in an undirected graph. Our baseline method is a set of heuristic decision functions modeled in a subsumption architecture, that each agent uses to compute its next action given its current beliefs. We investigated two other methods for designing agents, where we used a Deep Q-network to model the action-value of each state-action pair, and differential evolution for tuning the hyperparameters of our baseline heuristic method.
 
-<img src="img/flowchart.png" alt="An agent's decision flowchart" style="width: 100px;"/>
+<img src="img/flowchart.png" alt="An agent's decision flowchart" style="width: 80px;"/>
 
 <p align="center">
   <i>An agent's decision flowchart</i>
