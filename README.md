@@ -49,5 +49,5 @@ Python 3.x: NumPy, Keras, pandas, jupyter, matplotlib, SciPy, pyparsing
 Copyright © 2016 Dana Kianfar, Jose Gallego and Marco Federici.
 
 <p align="justify">
-This project is distributed under the <a href="LICENSE">MIT license</a>. Please follow the <a href="http://student.uva.nl/en/az/content/plagiarism-and-fraud/plagiarism-and-fraud.html">UvA regulations governing Fraud and Plagiarism</a> in case you are a student.
+This project is distributed under the <a href="LICENSE">MIT license</a>. Please review the <a href="http://student.uva.nl/en/content/az/plagiarism-and-fraud/plagiarism-and-fraud.html">UvA regulations governing Fraud and Plagiarism</a> in case you are a student at the UvA.
 </p>
